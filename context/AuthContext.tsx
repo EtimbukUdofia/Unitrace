@@ -1,9 +1,9 @@
 import { auth, db } from "@/config/firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, DocumentData, getDoc } from "firebase/firestore";
 import { createContext, PropsWithChildren, useEffect, useState } from "react";
 
-type Role = "student" | "staff" | null;
+type Role = "student" | "lecturer" | null;
 
 export const AuthContext = createContext<{
   user: User | null,
@@ -20,6 +20,7 @@ export const AuthContext = createContext<{
 export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<Role>(null);
+  const [userData, setUserData] = useState<DocumentData | undefined>(undefined);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         const docSnap = await getDoc(doc(db, "users", currentUser.uid));
         const data = docSnap.data();
         setUser(currentUser);
+        setUserData(data);
         console.log("setting Role:", data?.role);
         setRole(data?.role);
       } else {
