@@ -4,15 +4,18 @@ import { doc, DocumentData, getDoc } from "firebase/firestore";
 import { createContext, PropsWithChildren, useEffect, useState } from "react";
 
 type Role = "student" | "lecturer" | null;
+type UserData = DocumentData | undefined;
 
 export const AuthContext = createContext<{
   user: User | null,
   role: Role,
-  isLoading: boolean
+  isLoading: boolean,
+  userData: UserData,
 }>({
   user: null,
   role: null,
-  isLoading: false
+  isLoading: false,
+  userData: undefined,
 });
 
 // export const AuthContext = createContext({});
@@ -20,7 +23,7 @@ export const AuthContext = createContext<{
 export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<Role>(null);
-  const [userData, setUserData] = useState<DocumentData | undefined>(undefined);
+  const [userData, setUserData] = useState<UserData>(undefined);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -48,7 +51,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   }, [role]);
 
   return (
-    <AuthContext.Provider value= {{ user, role, isLoading }}>
+    <AuthContext.Provider value= {{ user, role, isLoading, userData }}>
       { children }
     </AuthContext.Provider>
   )
