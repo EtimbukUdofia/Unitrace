@@ -1,10 +1,30 @@
-import { Stack } from "expo-router";
+import { AuthContext, AuthProvider } from "@/context/AuthContext";
+import { SplashScreen, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
+import { useContext, useEffect } from "react";
 
-export default function RootLayout() {
-  const [role, setRole] = useState<"student" | "lecturer" | null>("student");
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
+SplashScreen.preventAutoHideAsync();
+
+export default function appLayout() {
+  return (
+    <AuthProvider>
+      <RootLayout/>
+    </AuthProvider>
+  )
+}
+
+function RootLayout() {
+  const { role, isLoading } = useContext(AuthContext);
+
+  useEffect(() => {
+    if (!isLoading) {
+      SplashScreen.hideAsync();
+    }
+  }, [isLoading]);
+
+  if (isLoading) {
+    return null;
+  }
 
   return (
     <>
