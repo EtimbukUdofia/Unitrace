@@ -10,9 +10,11 @@ import {
   Platform,
   ScrollView,
   StatusBar,
-  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { router } from 'expo-router';
 
 const AuthScreen = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -22,11 +24,14 @@ const AuthScreen = () => {
     password: '',
     confirmPassword: '',
     fullName: '',
-    studentId: '',
+    matricNo: '',
     department: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const auth = getAuth();
+  const firestore = getFirestore();
 
   const handleInputChange = (field:any, value:any) => {
     setFormData(prev => ({
@@ -35,9 +40,43 @@ const AuthScreen = () => {
     }));
   };
 
-  const handleSubmit = () => {
-    // Handle form submission logic here
-    console.log('Form submitted:', { isLogin, userType, formData });
+  const handleSubmit = async () => {
+    if (isLogin) {
+      // Login logic
+      try {
+        await signInWithEmailAndPassword(auth, formData.email, formData.password);
+        console.log("login clicked")
+      } catch (error) {
+        console.error('Login error:', error);
+      }
+    } else {
+      // Registration logic
+      if (formData.password !== formData.confirmPassword) {
+        // Handle password mismatch
+        console.error('Passwords do not match');
+        return;
+      }
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+        const user = userCredential.user;
+        // Optionally update display name
+        await updateProfile(user, { displayName: formData.fullName });
+        // Save user data to Firestore
+        await setDoc(doc(firestore, 'users', user.uid), {
+          email: formData.email,
+          fullName: formData.fullName,
+          role: userType,
+          matricNo: formData.matricNo,
+          department: formData.department,
+          createdAt: new Date().toISOString(),
+        });
+        // Force reload of user data after registration to ensure AuthContext picks up the new Firestore document
+        await auth.currentUser?.reload();
+      } catch (error) {
+        // Handle registration error (show message to user)
+        console.error('Registration error:', error);
+      }
+    }
   };
 
   const resetForm = () => {
@@ -46,7 +85,7 @@ const AuthScreen = () => {
       password: '',
       confirmPassword: '',
       fullName: '',
-      studentId: '',
+      matricNo: '',
       department: '',
     });
   };
@@ -174,10 +213,10 @@ const AuthScreen = () => {
                     <Ionicons name="card-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
                     <TextInput
                       style={styles.textInput}
-                      placeholder="Student ID"
+                      placeholder="Matric No"
                       placeholderTextColor="#9ca3af"
-                      value={formData.studentId}
-                      onChangeText={(text) => handleInputChange('studentId', text)}
+                      value={formData.matricNo}
+                      onChangeText={(text) => handleInputChange('matricNo', text)}
                     />
                   </View>
                 )}

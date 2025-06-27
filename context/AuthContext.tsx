@@ -14,7 +14,7 @@ export const AuthContext = createContext<{
 }>({
   user: null,
   role: null,
-  isLoading: true,
+  isLoading: false,
   userData: undefined,
 });
 
@@ -30,12 +30,13 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       if (!isMounted) return;
       if (currentUser) {
         try {
+          setIsLoading(true);
           const docSnap = await getDoc(doc(db, "users", currentUser.uid));
           const data = docSnap.data();
           if (!isMounted) return;
-          setUser(currentUser);
           setUserData(data);
           setRole(data?.role ?? null);
+          setUser(currentUser);
         } catch (error) {
           if (!isMounted) return;
           setUser(null);
@@ -56,6 +57,10 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    console.log(role)
+  }, [role]);
 
   return (
     <AuthContext.Provider value={{ user, role, isLoading, userData }}>
