@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { getAuth, signOut } from '@firebase/auth';
 import { AttendanceOverview } from '@/components/AttendanceOverview';
 import { QuickActions } from '@/components/QuickActions';
+// import { AuthContext } from '@/context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -21,7 +23,17 @@ const StudentDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
 
+  // const { user } = useContext(AuthContext);
+
   const router = useRouter();
+
+  const handleSignOut = () => { 
+    const auth = getAuth();
+    signOut(auth)
+      .then(() => { console.log('Sign out successful'); }).catch((error) => {
+        console.error('Sign out error:', error);
+      })
+  }
 
   // Mock data - replace with actual API calls
   const [studentData] = useState({
@@ -300,7 +312,7 @@ const StudentDashboard = () => {
             <Text style={styles.studentName}>{studentData.name}</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.notificationButton}>
+        <TouchableOpacity style={styles.notificationButton} onPress={handleSignOut}>
           <Ionicons name="notifications-outline" size={24} color="#1f2937" />
           <View style={styles.notificationBadge} />
         </TouchableOpacity>
