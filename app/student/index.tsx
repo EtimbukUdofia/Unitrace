@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { AttendanceOverview } from '@/components/AttendanceOverview';
+import { QuickActions } from '@/components/QuickActions';
 
 const { width } = Dimensions.get('window');
 
@@ -121,203 +123,167 @@ const StudentDashboard = () => {
     });
   };
 
-  const getAttendanceColor = (percentage:number) => {
-    if (percentage >= 85) return '#10b981';
-    if (percentage >= 75) return '#f59e0b';
-    return '#ef4444';
-  };
-
-  const getStatusColor = (status:string) => {
-    switch (status) {
-      case 'present':
-        return '#10b981';
-      case 'absent':
-        return '#ef4444';
-      case 'pending':
-        return '#3b82f6';
-      case 'missed':
-        return '#ef4444';
-      default:
-        return '#6b7280';
-    }
-  };
-
-  const getStatusIcon = (status:string) => {
-    switch (status) {
-      case 'present':
-        return 'checkmark-circle';
-      case 'absent':
-        return 'close-circle';
-      case 'pending':
-        return 'time-outline';
-      case 'missed':
-        return 'alert-circle';
-      default:
-        return 'help-circle';
-    }
-  };
-
   const handleScanQR = () => {
     // Navigate to QR scanner screen
     router.navigate("/student/scan");
     // console.log('Navigate to QR Scanner');
   };
 
-  const renderAttendanceOverview = () => (
-    <View style={styles.attendanceCard}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Attendance Overview</Text>
-        <TouchableOpacity>
-          <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-        </TouchableOpacity>
-      </View>
+  // const renderAttendanceOverview = () => (
+  //   <View style={styles.attendanceCard}>
+  //     <View style={styles.cardHeader}>
+  //       <Text style={styles.cardTitle}>Attendance Overview</Text>
+  //       <TouchableOpacity>
+  //         <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+  //       </TouchableOpacity>
+  //     </View>
       
-      <View style={styles.attendanceContent}>
-        <View style={styles.attendanceCircle}>
-          <View style={[styles.progressRing, { borderColor: getAttendanceColor(attendanceStats.overall) }]}>
-            <Text style={[styles.attendancePercentage, { color: getAttendanceColor(attendanceStats.overall) }]}>
-              {attendanceStats.overall}%
-            </Text>
-          </View>
-        </View>
+  //     <View style={styles.attendanceContent}>
+  //       <View style={styles.attendanceCircle}>
+  //         <View style={[styles.progressRing, { borderColor: getAttendanceColor(attendanceStats.overall) }]}>
+  //           <Text style={[styles.attendancePercentage, { color: getAttendanceColor(attendanceStats.overall) }]}>
+  //             {attendanceStats.overall}%
+  //           </Text>
+  //         </View>
+  //       </View>
         
-        <View style={styles.attendanceStats}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{attendanceStats.present}</Text>
-            <Text style={styles.statLabel}>Present</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{attendanceStats.absent}</Text>
-            <Text style={styles.statLabel}>Absent</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{attendanceStats.totalClasses}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-        </View>
-      </View>
+  //       <View style={styles.attendanceStats}>
+  //         <View style={styles.statItem}>
+  //           <Text style={styles.statNumber}>{attendanceStats.present}</Text>
+  //           <Text style={styles.statLabel}>Present</Text>
+  //         </View>
+  //         <View style={styles.statItem}>
+  //           <Text style={styles.statNumber}>{attendanceStats.absent}</Text>
+  //           <Text style={styles.statLabel}>Absent</Text>
+  //         </View>
+  //         <View style={styles.statItem}>
+  //           <Text style={styles.statNumber}>{attendanceStats.totalClasses}</Text>
+  //           <Text style={styles.statLabel}>Total</Text>
+  //         </View>
+  //       </View>
+  //     </View>
 
-      <View style={styles.weeklyStats}>
-        <View style={styles.weeklyStatItem}>
-          <Text style={styles.weeklyStatNumber}>{attendanceStats.thisWeek}</Text>
-          <Text style={styles.weeklyStatLabel}>This Week</Text>
-        </View>
-        <View style={styles.weeklyStatItem}>
-          <Text style={styles.weeklyStatNumber}>{attendanceStats.thisMonth}</Text>
-          <Text style={styles.weeklyStatLabel}>This Month</Text>
-        </View>
-      </View>
-    </View>
-  );
+  //     <View style={styles.weeklyStats}>
+  //       <View style={styles.weeklyStatItem}>
+  //         <Text style={styles.weeklyStatNumber}>{attendanceStats.thisWeek}</Text>
+  //         <Text style={styles.weeklyStatLabel}>This Week</Text>
+  //       </View>
+  //       <View style={styles.weeklyStatItem}>
+  //         <Text style={styles.weeklyStatNumber}>{attendanceStats.thisMonth}</Text>
+  //         <Text style={styles.weeklyStatLabel}>This Month</Text>
+  //       </View>
+  //     </View>
+  //   </View>
+  // );
 
-  const renderQuickActions = () => (
-    <View style={styles.quickActionsContainer}>
-      <Text style={styles.sectionTitle}>Quick Actions</Text>
-      <View style={styles.quickActionsGrid}>
-        <TouchableOpacity style={styles.quickActionItem} onPress={handleScanQR}>
-          <View style={[styles.quickActionIcon, { backgroundColor: '#dbeafe' }]}>
-            <Ionicons name="qr-code-outline" size={28} color="#3b82f6" />
-          </View>
-          <Text style={styles.quickActionText}>Scan QR</Text>
-        </TouchableOpacity>
+  // const renderQuickActions = () => (
+  //   <View style={styles.quickActionsContainer}>
+  //     <Text style={styles.sectionTitle}>Quick Actions</Text>
+  //     <View style={styles.quickActionsGrid}>
+  //       <TouchableOpacity style={styles.quickActionItem} onPress={handleScanQR}>
+  //         <View style={[styles.quickActionIcon, { backgroundColor: '#dbeafe' }]}>
+  //           <Ionicons name="qr-code-outline" size={28} color="#3b82f6" />
+  //         </View>
+  //         <Text style={styles.quickActionText}>Scan QR</Text>
+  //       </TouchableOpacity>
         
-        <TouchableOpacity style={styles.quickActionItem}>
-          <View style={[styles.quickActionIcon, { backgroundColor: '#dcfce7' }]}>
-            <Ionicons name="bar-chart-outline" size={28} color="#10b981" />
-          </View>
-          <Text style={styles.quickActionText}>Reports</Text>
-        </TouchableOpacity>
+  //       <TouchableOpacity style={styles.quickActionItem}>
+  //         <View style={[styles.quickActionIcon, { backgroundColor: '#dcfce7' }]}>
+  //           <Ionicons name="bar-chart-outline" size={28} color="#10b981" />
+  //         </View>
+  //         <Text style={styles.quickActionText}>Reports</Text>
+  //       </TouchableOpacity>
         
-        <TouchableOpacity style={styles.quickActionItem} onPress={()=> router.navigate("/student/history")}>
-          <View style={[styles.quickActionIcon, { backgroundColor: '#fef3c7' }]}>
-            <Ionicons name="calendar-outline" size={28} color="#f59e0b" />
-          </View>
-          <Text style={styles.quickActionText}>History</Text>
-        </TouchableOpacity>
+  //       <TouchableOpacity style={styles.quickActionItem} onPress={()=> router.navigate("/student/history")}>
+  //         <View style={[styles.quickActionIcon, { backgroundColor: '#fef3c7' }]}>
+  //           <Ionicons name="calendar-outline" size={28} color="#f59e0b" />
+  //         </View>
+  //         <Text style={styles.quickActionText}>History</Text>
+  //       </TouchableOpacity>
         
-        <TouchableOpacity style={styles.quickActionItem} onPress={()=> router.navigate("/student/profile")}>
-          <View style={[styles.quickActionIcon, { backgroundColor: '#ede9fe' }]}>
-            <Ionicons name="person-outline" size={28} color="#8b5cf6" />
-          </View>
-          <Text style={styles.quickActionText}>Profile</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  //       <TouchableOpacity style={styles.quickActionItem} onPress={()=> router.navigate("/student/profile")}>
+  //         <View style={[styles.quickActionIcon, { backgroundColor: '#ede9fe' }]}>
+  //           <Ionicons name="person-outline" size={28} color="#8b5cf6" />
+  //         </View>
+  //         <Text style={styles.quickActionText}>Profile</Text>
+  //       </TouchableOpacity>
+  //     </View>
+  //   </View>
+  // );
 
-  const renderTodaysClasses = () => (
-    <View style={styles.classesContainer}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Today&apos;s Classes</Text>
-        <Text style={styles.classCount}>{todaysClasses.length} classes</Text>
-      </View>
+  // const renderTodaysClasses = () => (
+  //   <View style={styles.classesContainer}>
+  //     <View style={styles.sectionHeader}>
+  //       <Text style={styles.sectionTitle}>Today&apos;s Classes</Text>
+  //       <Text style={styles.classCount}>{todaysClasses.length} classes</Text>
+  //     </View>
       
-      {todaysClasses.length > 0 ? (
-        todaysClasses.map((classItem) => (
-          <View key={classItem.id} style={styles.classItem}>
-            <View style={styles.classIcon}>
-              <Ionicons 
-                name={getStatusIcon(classItem.status)} 
-                size={20} 
-                color={getStatusColor(classItem.status)} 
-              />
-            </View>
-            <View style={styles.classContent}>
-              <Text style={styles.classSubject}>{classItem.subject}</Text>
-              <Text style={styles.classDetails}>{classItem.lecturer} • {classItem.location}</Text>
-              <Text style={styles.classTime}>{classItem.expectedTime}</Text>
-            </View>
-            <View style={styles.classStatus}>
-              <Text style={[styles.statusText, { color: getStatusColor(classItem.status) }]}>
-                {classItem.status === 'pending' ? 'Scan to Mark' : classItem.status}
-              </Text>
-            </View>
-          </View>
-        ))
-      ) : (
-        <View style={styles.noClassesContainer}>
-          <Ionicons name="calendar-outline" size={40} color="#9ca3af" />
-          <Text style={styles.noClassesText}>No classes scheduled for today</Text>
-        </View>
-      )}
-    </View>
-  );
+  //     {todaysClasses.length > 0 ? (
+  //       todaysClasses.map((classItem) => (
+  //         <View key={classItem.id} style={styles.classItem}>
+  //           <View style={styles.classIcon}>
+  //             <Ionicons 
+  //               name={getStatusIcon(classItem.status)} 
+  //               size={20} 
+  //               color={getStatusColor(classItem.status)} 
+  //             />
+  //           </View>
+  //           <View style={styles.classContent}>
+  //             <Text style={styles.classSubject}>{classItem.subject}</Text>
+  //             <Text style={styles.classDetails}>{classItem.lecturer} • {classItem.location}</Text>
+  //             <Text style={styles.classTime}>{classItem.expectedTime}</Text>
+  //           </View>
+  //           <View style={styles.classStatus}>
+  //             <Text style={[styles.statusText, { color: getStatusColor(classItem.status) }]}>
+  //               {classItem.status === 'pending' ? 'Scan to Mark' : classItem.status}
+  //             </Text>
+  //           </View>
+  //         </View>
+  //       ))
+  //     ) : (
+  //       <View style={styles.noClassesContainer}>
+  //         <Ionicons name="calendar-outline" size={40} color="#9ca3af" />
+  //         <Text style={styles.noClassesText}>No classes scheduled for today</Text>
+  //       </View>
+  //     )}
+  //   </View>
+  // );
 
-  const renderRecentAttendance = () => (
-    <View style={styles.recentContainer}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Recent Attendance</Text>
-        <TouchableOpacity>
-          <Text style={styles.viewAllText}>View All</Text>
-        </TouchableOpacity>
-      </View>
+  // const renderRecentAttendance = () => (
+  //   <View style={styles.recentContainer}>
+  //     <View style={styles.sectionHeader}>
+  //       <Text style={styles.sectionTitle}>Recent Attendance</Text>
+  //       <TouchableOpacity>
+  //         <Text style={styles.viewAllText}>View All</Text>
+  //       </TouchableOpacity>
+  //     </View>
       
-      {recentAttendance.map((record) => (
-        <View key={record.id} style={styles.attendanceRecord}>
-          <View style={[styles.recordIcon, { backgroundColor: `${getStatusColor(record.status)}20` }]}>
-            <Ionicons 
-              name={getStatusIcon(record.status)} 
-              size={16} 
-              color={getStatusColor(record.status)} 
-            />
-          </View>
-          <View style={styles.recordContent}>
-            <Text style={styles.recordSubject}>{record.subject}</Text>
-            <Text style={styles.recordDetails}>{record.lecturer} • {record.location}</Text>
-            <Text style={styles.recordTime}>{record.date} at {record.time}</Text>
-          </View>
-          <View style={styles.recordStatus}>
-            <Text style={[styles.statusBadge, { 
-              backgroundColor: `${getStatusColor(record.status)}20`,
-              color: getStatusColor(record.status)
-            }]}>
-              {record.status}
-            </Text>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
+  //     {recentAttendance.map((record) => (
+  //       <View key={record.id} style={styles.attendanceRecord}>
+  //         <View style={[styles.recordIcon, { backgroundColor: `${getStatusColor(record.status)}20` }]}>
+  //           <Ionicons 
+  //             name={getStatusIcon(record.status)} 
+  //             size={16} 
+  //             color={getStatusColor(record.status)} 
+  //           />
+  //         </View>
+  //         <View style={styles.recordContent}>
+  //           <Text style={styles.recordSubject}>{record.subject}</Text>
+  //           <Text style={styles.recordDetails}>{record.lecturer} • {record.location}</Text>
+  //           <Text style={styles.recordTime}>{record.date} at {record.time}</Text>
+  //         </View>
+  //         <View style={styles.recordStatus}>
+  //           <Text style={[styles.statusBadge, { 
+  //             backgroundColor: `${getStatusColor(record.status)}20`,
+  //             color: getStatusColor(record.status)
+  //           }]}>
+  //             {record.status}
+  //           </Text>
+  //         </View>
+  //       </View>
+  //     ))}
+  //   </View>
+  // );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -354,16 +320,18 @@ const StudentDashboard = () => {
         }
       >
         {/* Attendance Overview */}
-        {renderAttendanceOverview()}
+        {/* {renderAttendanceOverview()} */}
+        <AttendanceOverview styles={ styles } attendanceStats={attendanceStats} />
 
         {/* Quick Actions */}
-        {renderQuickActions()}
+        {/* {renderQuickActions()} */}
+        <QuickActions styles={styles} handleScanQR={handleScanQR}/>
 
         {/* Today's Classes */}
-        {renderTodaysClasses()}
+        {/* {renderTodaysClasses()} */}
 
         {/* Recent Attendance */}
-        {renderRecentAttendance()}
+        {/* {renderRecentAttendance()} */}
 
         <View style={styles.bottomPadding} />
       </ScrollView>

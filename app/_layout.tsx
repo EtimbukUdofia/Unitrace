@@ -3,7 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 
 export default function RootLayout() {
-  const [role, setRole] = useState<string | null>("student");
+  const [role, setRole] = useState<"student" | "lecturer" | null>("student");
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
 
   return (
