@@ -29,16 +29,16 @@ export default function TabLayout() {
         tabBarIcon: ({ color, focused }) => (
           <Ionicons name={focused ? 'qr-code' : 'qr-code-outline'} color={color} size={24} />
         )
-      }} />
+      }} /> */}
       
-      <Tabs.Screen name="history" options={{
-        title: 'History',
+      <Tabs.Screen name="session" options={{
+        title: 'Session',
         tabBarIcon: ({ color, focused }) => (
           <Ionicons name={focused ? 'calendar' : 'calendar-outline'} color={color} size={24} />
         )
       }} />
       
-      <Tabs.Screen name="profile" options={{
+      {/* <Tabs.Screen name="profile" options={{
         title: 'Profile',
         tabBarIcon: ({ color, focused }) => (
           <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} color={color} size={24} />
