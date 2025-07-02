@@ -14,7 +14,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { getFirestore, doc, setDoc } from 'firebase/firestore';
-import { router } from 'expo-router';
 
 const AuthScreen = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -66,7 +65,9 @@ const AuthScreen = () => {
           email: formData.email,
           fullName: formData.fullName,
           role: userType,
-          matricNo: formData.matricNo,
+          // Only include matricNo for students
+          ...(userType === 'student' && { matricNo: formData.matricNo }),
+          // matricNo: formData.matricNo,
           department: formData.department,
           createdAt: new Date().toISOString(),
         });
