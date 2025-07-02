@@ -33,3 +33,29 @@ export const getAttendanceColor = (percentage:number) => {
   if (percentage >= 75) return '#f59e0b';
   return '#ef4444';
 };
+
+export const getClassStatusColor = (status: string) => {
+  switch (status) {
+    case 'upcoming':
+      return '#3b82f6';
+    case 'ongoing':
+      return '#10b981';
+    case 'completed':
+      return '#6b7280';
+    default:
+      return '#6b7280';
+  }
+};
+
+export const getClassStatusIcon = (status: string) => {
+  switch (status) {
+    case 'upcoming':
+      return 'time-outline';
+    case 'ongoing':
+      return 'play-circle';
+    case 'completed':
+      return 'checkmark-circle';
+    default:
+      return 'help-circle';
+  }
+};
