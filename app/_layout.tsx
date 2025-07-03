@@ -1,3 +1,4 @@
+import { AttendanceProvider } from "@/context/AttendanceContext";
 import { AuthContext, AuthProvider } from "@/context/AuthContext";
 import { SplashScreen, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -8,7 +9,9 @@ SplashScreen.preventAutoHideAsync();
 export default function appLayout() {
   return (
     <AuthProvider>
-      <RootLayout/>
+      <AttendanceProvider>
+        <RootLayout />
+      </AttendanceProvider>
     </AuthProvider>
   )
 }
@@ -30,12 +33,12 @@ function RootLayout() {
     <>
       <Stack>
         <Stack.Protected guard={role === "student"}>
-          <Stack.Screen name="student" options={{headerShown: false}}/>
+          <Stack.Screen name="student" options={{ headerShown: false }} />
         </Stack.Protected>
         <Stack.Protected guard={role === "lecturer"}>
-          <Stack.Screen name="lecturer" options={{headerShown: false}}/>
+          <Stack.Screen name="lecturer" options={{ headerShown: false }} />
         </Stack.Protected>
-        <Stack.Screen name="auth" options={{headerShown: false}}/>
+        <Stack.Screen name="auth" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="light" />
     </>
