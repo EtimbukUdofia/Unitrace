@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, Timestamp } from 'firebase/firestore';
 
 const AuthScreen = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -61,7 +61,7 @@ const AuthScreen = () => {
         // Optionally update display name
         await updateProfile(user, { displayName: formData.fullName });
         // Save user data to Firestore
-        await setDoc(doc(firestore, 'users', user.uid), {
+        await setDoc(doc(firestore, userType , user.uid), {
           email: formData.email,
           fullName: formData.fullName,
           role: userType,
@@ -69,7 +69,8 @@ const AuthScreen = () => {
           ...(userType === 'student' && { matricNo: formData.matricNo }),
           // matricNo: formData.matricNo,
           department: formData.department,
-          createdAt: new Date().toISOString(),
+          // createdAt: new Date().toISOString(),
+          createdAt: Timestamp.now(),
         });
         // Force reload of user data after registration to ensure AuthContext picks up the new Firestore document
         await auth.currentUser?.reload();
