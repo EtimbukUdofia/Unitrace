@@ -28,14 +28,24 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     let isMounted = true;
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!isMounted) return;
+      setIsLoading(true);
       if (currentUser) {
         try {
-          setIsLoading(true);
-          const docSnap = await getDoc(doc(db, "users", currentUser.uid));
-          const data = docSnap.data();
+          // Try to get from 'student' collection first
+          let docSnap = await getDoc(doc(db, "student", currentUser.uid));
+          let data = docSnap.exists() ? docSnap.data() : undefined;
+          let foundRole = data?.role ?? null;
+
+          // If not found in 'student', try 'lecturer'
+          if (!data) {
+            docSnap = await getDoc(doc(db, "lecturer", currentUser.uid));
+            data = docSnap.exists() ? docSnap.data() : undefined;
+            foundRole = data?.role ?? null;
+          }
+
           if (!isMounted) return;
           setUserData(data);
-          setRole(data?.role ?? null);
+          setRole(foundRole);
           setUser(currentUser);
         } catch (error) {
           if (!isMounted) return;
