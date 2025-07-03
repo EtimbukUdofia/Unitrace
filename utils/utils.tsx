@@ -6,6 +6,8 @@ export const getStatusIcon = (status:string) => {
       return 'close-circle';
     case 'pending':
       return 'time-outline';
+    case 'ongoing':
+      return 'time-outline';
     case 'missed':
       return 'alert-circle';
     default:
@@ -20,6 +22,8 @@ export const getStatusColor = (status:string) => {
     case 'absent':
       return '#ef4444';
     case 'pending':
+      return '#3b82f6';
+    case 'ongoing':
       return '#3b82f6';
     case 'missed':
       return '#ef4444';
