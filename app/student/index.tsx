@@ -12,10 +12,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { getAuth, signOut } from '@firebase/auth';
+import { signOut } from '@firebase/auth';
+import { auth } from '@/config/firebase';
 import { AttendanceOverview } from '@/components/AttendanceOverview';
 import { QuickActions } from '@/components/QuickActions';
-// import { AuthContext } from '@/context/AuthContext';
+import { AuthContext } from '@/context/AuthContext';
+// import RecentAttendance from '@/components/RecentAttendance';
+import TodaysClasses from '@/components/TodaysClasses';
 
 const { width } = Dimensions.get('window');
 
@@ -23,12 +26,11 @@ const StudentDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // const { user } = useContext(AuthContext);
+  const { user, userData } = useContext(AuthContext);
 
   const router = useRouter();
 
   const handleSignOut = () => { 
-    const auth = getAuth();
     signOut(auth)
       .then(() => { console.log('Sign out successful'); }).catch((error) => {
         console.error('Sign out error:', error);
@@ -52,64 +54,6 @@ const StudentDashboard = () => {
     thisWeek: 4,
     thisMonth: 18,
   });
-
-  const [recentAttendance] = useState([
-    {
-      id: 1,
-      subject: 'Data Structures',
-      lecturer: 'Dr. Smith',
-      date: '2025-06-11',
-      time: '09:30 AM',
-      status: 'present',
-      location: 'Room 101',
-    },
-    {
-      id: 2,
-      subject: 'Database Systems',
-      lecturer: 'Prof. Johnson',
-      date: '2025-06-10',
-      time: '11:00 AM',
-      status: 'present',
-      location: 'Lab 204',
-    },
-    {
-      id: 3,
-      subject: 'Software Engineering',
-      lecturer: 'Dr. Wilson',
-      date: '2025-06-10',
-      time: '02:00 PM',
-      status: 'absent',
-      location: 'Room 305',
-    },
-    {
-      id: 4,
-      subject: 'Mathematics',
-      lecturer: 'Prof. Davis',
-      date: '2025-06-09',
-      time: '10:00 AM',
-      status: 'present',
-      location: 'Room 201',
-    },
-  ]);
-
-  const [todaysClasses] = useState([
-    {
-      id: 1,
-      subject: 'Operating Systems',
-      lecturer: 'Dr. Brown',
-      expectedTime: '10:00 AM',
-      location: 'Lab 301',
-      status: 'pending', // pending, completed, missed
-    },
-    {
-      id: 2,
-      subject: 'Computer Networks',
-      lecturer: 'Prof. Taylor',
-      expectedTime: '02:30 PM',
-      location: 'Room 405',
-      status: 'pending',
-    },
-  ]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -309,11 +253,11 @@ const StudentDashboard = () => {
           </View>
           <View style={styles.headerInfo}>
             <Text style={styles.welcomeText}>Welcome back,</Text>
-            <Text style={styles.studentName}>{studentData.name}</Text>
+            <Text style={styles.studentName}>{user?.displayName}</Text>
           </View>
         </View>
         <TouchableOpacity style={styles.notificationButton} onPress={handleSignOut}>
-          <Ionicons name="notifications-outline" size={24} color="#1f2937" />
+          <Ionicons name="log-out-outline" size={24} color="#1f2937" />
           <View style={styles.notificationBadge} />
         </TouchableOpacity>
       </View>
@@ -321,7 +265,7 @@ const StudentDashboard = () => {
       {/* Date */}
       <View style={styles.dateContainer}>
         <Text style={styles.dateText}>{formatDate(currentDate)}</Text>
-        <Text style={styles.studentInfo}>{studentData.studentId} • {studentData.department}</Text>
+        <Text style={styles.studentInfo}>{userData?.matricNo} • {userData?.department}</Text>
       </View>
 
       <ScrollView
@@ -341,8 +285,10 @@ const StudentDashboard = () => {
 
         {/* Today's Classes */}
         {/* {renderTodaysClasses()} */}
+        <TodaysClasses styles={styles} />
 
         {/* Recent Attendance */}
+        {/* <RecentAttendance styles={styles} /> */}
         {/* {renderRecentAttendance()} */}
 
         <View style={styles.bottomPadding} />
