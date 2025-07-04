@@ -1,65 +1,46 @@
 import { View, Text } from 'react-native'
-import React, { useState } from 'react'
+import React, { useContext } from 'react'
 import { getStatusIcon, getStatusColor } from '@/utils/utils';
 import { Ionicons } from '@expo/vector-icons';
+import { AttendanceContext } from '@/context/AttendanceContext';
 
 type PropType = {
   styles: any,
 }
 
 const TodaysClasses: React.FC<PropType> = ({ styles }) => {
-  const [todaysClasses] = useState([
-    {
-      id: 1,
-      subject: 'Operating Systems',
-      lecturer: 'Dr. Brown',
-      expectedTime: '10:00 AM',
-      location: 'Lab 301',
-      status: 'pending', // pending, completed, missed
-    },
-    {
-      id: 2,
-      subject: 'Computer Networks',
-      lecturer: 'Prof. Taylor',
-      expectedTime: '02:30 PM',
-      location: 'Room 405',
-      status: 'pending',
-    },
-  ]);
+  const { ongoingLecture } = useContext(AttendanceContext);
 
   return (
     <View style={styles.classesContainer}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Today&apos;s Classes</Text>
-        <Text style={styles.classCount}>{todaysClasses.length} classes</Text>
+        <Text style={styles.sectionTitle}>Ongoing Class</Text>
       </View>
 
-      {todaysClasses.length > 0 ? (
-        todaysClasses.map((classItem) => (
-          <View key={classItem.id} style={styles.classItem}>
+      {ongoingLecture ? (
+          <View key={ongoingLecture.id} style={styles.classItem}>
             <View style={styles.classIcon}>
               <Ionicons
-                name={getStatusIcon(classItem.status)}
+                name={getStatusIcon(ongoingLecture.status)}
                 size={20}
-                color={getStatusColor(classItem.status)}
+                color={getStatusColor(ongoingLecture.status)}
               />
             </View>
             <View style={styles.classContent}>
-              <Text style={styles.classSubject}>{classItem.subject}</Text>
-              <Text style={styles.classDetails}>{classItem.lecturer} • {classItem.location}</Text>
-              <Text style={styles.classTime}>{classItem.expectedTime}</Text>
+            <Text style={styles.classSubject}>{ongoingLecture.courseTitle}   { ongoingLecture.code}</Text>
+              <Text style={styles.classDetails}>{ongoingLecture.lecturer} • {ongoingLecture.location}</Text>
+              <Text style={styles.classTime}>{ongoingLecture.time}</Text>
             </View>
             <View style={styles.classStatus}>
-              <Text style={[styles.statusText, { color: getStatusColor(classItem.status) }]}>
-                {classItem.status === 'pending' ? 'Scan to Mark' : classItem.status}
+              <Text style={[styles.statusText, { color: getStatusColor(ongoingLecture.status) }]}>
+                {ongoingLecture.status === 'pending' || ongoingLecture.status === 'ongoing' ? 'Ongoing' : 'Finished'}
               </Text>
             </View>
           </View>
-        ))
       ) : (
         <View style={styles.noClassesContainer}>
           <Ionicons name="calendar-outline" size={40} color="#9ca3af" />
-          <Text style={styles.noClassesText}>No classes scheduled for today</Text>
+          <Text style={styles.noClassesText}>No Ongoing Class</Text>
         </View>
       )}
     </View>

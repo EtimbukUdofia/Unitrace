@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import {
   View,
   Text,
@@ -16,18 +16,31 @@ import { Ionicons } from '@expo/vector-icons';
 import { Camera, CameraView } from 'expo-camera';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
+import { doc, DocumentData, DocumentSnapshot, getDoc } from 'firebase/firestore';
+import { db } from '@/config/firebase';
+import { AttendanceContext } from '@/context/AttendanceContext';
 
 const { width } = Dimensions.get('window');
 const SCAN_AREA_SIZE = width * 0.7;
 
 const QRScannerScreen = () => {
-  const [hasPermission, setHasPermission] = useState(null);
+  const {setCurrentLectureData, currentLectureData, ongoingLecture}= useContext(AttendanceContext);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [scanning, setScanning] = useState(true);
   const [flashOn, setFlashOn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
-  const [attendanceData, setAttendanceData] = useState(null);
+  type AttendanceDisplayData = {
+    title: string;
+    code: string;
+    lecturer: string;
+    location: string;
+    time: string;
+    date: string;
+    status: string;
+  };
+  const [attendanceDisplayData, setAttendanceDisplayData] = useState<AttendanceDisplayData| DocumentData | null>(null);
   const [isFocused, setIsFocused] = useState(false); // Changed from null to false
   const [cameraKey, setCameraKey] = useState(0); // Add key to force camera remount
   const router = useRouter();
@@ -134,7 +147,7 @@ const QRScannerScreen = () => {
     }
   };
 
-  const handleBarCodeScanned = async ({ type, data }) => {
+  const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
     if (scanned || loading || !isFocused) return;
 
     setScanned(true);
@@ -158,55 +171,41 @@ const QRScannerScreen = () => {
       //   throw new Error('QR code has expired');
       // }
 
-      // // Simulate API call to mark attendance
-      // await markAttendance(qrData);
-      await markAttendance(data);
 
+      await markAttendance(data);
     } catch (error) {
       console.error('QR Scan Error:', error);
-      showErrorAlert(error.message);
+      showErrorAlert(
+        typeof error === 'object' && error !== null && 'message' in error
+          ? (error as { message: string }).message
+          : 'An unexpected error occurred'
+      );
     }
   };
 
-  const markAttendance = async (qrData) => {
+  const markAttendance = async (qrData: string) => {
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Mock successful response
-      const mockResponse = {
-        success: true,
-        data: {
-          subject: 'Data Structures',
-          lecturer: 'Dr. Smith',
-          location: 'Room 101',
-          time: new Date().toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true,
-          }),
-          date: new Date().toLocaleDateString('en-US', {
-            weekday: 'long',
-            month: 'short',
-            day: 'numeric',
-          }),
-          status: 'present',
-        }
-      };
-
-      if (mockResponse.success) {
-        setAttendanceData(mockResponse.data);
-        setLoading(false);
-        showSuccessAnimation();
-      } else {
-        throw new Error('Failed to mark attendance');
+      const docsnap = await getDoc(doc(db, 'class_session', qrData));
+      const data = docsnap.data();
+      if (!data) {
+        throw new Error('Class session not found');
       }
 
+      setCurrentLectureData(data);
+      setLoading(false);
+      showSuccessAnimation();
     } catch (error) {
       setLoading(false);
       throw error;
     }
   };
+
+  // Effect to watch for context update and set display data
+  useEffect(() => {
+    if (ongoingLecture) {
+      setAttendanceDisplayData(ongoingLecture);
+    }
+  }, [ongoingLecture]);
 
   const showSuccessAnimation = () => {
     setScanSuccess(true);
@@ -221,7 +220,7 @@ const QRScannerScreen = () => {
     }, 3000);
   };
 
-  const showErrorAlert = (message) => {
+  const showErrorAlert = (message: string) => {
     setLoading(false);
     Alert.alert(
       'Scan Failed',
@@ -244,7 +243,7 @@ const QRScannerScreen = () => {
     setScanned(false);
     setLoading(false);
     setScanSuccess(false);
-    setAttendanceData(null);
+    setAttendanceDisplayData(null);
     setFlashOn(false);
     successAnim.setValue(0);
     
@@ -433,18 +432,18 @@ const QRScannerScreen = () => {
             <View style={styles.successIcon}>
               <Ionicons name="checkmark" size={40} color="#ffffff" />
             </View>
-            <Text style={styles.successTitle}>Attendance Marked!</Text>
-            {attendanceData && (
+            {attendanceDisplayData && (
               <View style={styles.successDetails}>
-                <Text style={styles.successSubject}>{attendanceData.subject}</Text>
+                <Text style={styles.successSubject}>{attendanceDisplayData.title}</Text>
                 <Text style={styles.successInfo}>
-                  {attendanceData.lecturer} • {attendanceData.location}
+                  {attendanceDisplayData.lecturer} • {attendanceDisplayData.location}
                 </Text>
                 <Text style={styles.successTime}>
-                  {attendanceData.date} at {attendanceData.time}
+                  {attendanceDisplayData.date} at {attendanceDisplayData.time}
                 </Text>
               </View>
             )}
+            {/* )} */}
             <Text style={styles.successFooter}>Returning to dashboard...</Text>
           </Animated.View>
         </View>
