@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Camera, CameraView } from 'expo-camera';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { doc, DocumentData, DocumentSnapshot, getDoc } from 'firebase/firestore';
+import { doc, DocumentData, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { AttendanceContext } from '@/context/AttendanceContext';
 
@@ -24,7 +24,7 @@ const { width } = Dimensions.get('window');
 const SCAN_AREA_SIZE = width * 0.7;
 
 const QRScannerScreen = () => {
-  const {setCurrentLectureData, currentLectureData, ongoingLecture}= useContext(AttendanceContext);
+  const {setCurrentLectureData, ongoingLecture}= useContext(AttendanceContext);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [scanning, setScanning] = useState(true);
