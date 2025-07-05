@@ -49,11 +49,6 @@ export const AttendanceProvider = ({ children }: PropsWithChildren) => {
             coursePromise as DocumentData,
             lecturerPromise as DocumentData,
           ]);
-          console.log("location doc:", locationDoc);
-          console.log("course doc:", courseDoc);
-          console.log("...")
-          console.log("course data:", courseDoc.data());
-          console.log("...")
 
           const locationName = locationDoc.exists() ? locationDoc.data().name : "Unknown Location";
           const courseTitle = courseDoc.exists() ? courseDoc.data().title : "Unknown Subject";
