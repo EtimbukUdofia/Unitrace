@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { signOut } from '@firebase/auth';
+import { auth } from '@/config/firebase';
+import WeeklyOverview from '@/components/WeeklyOverview';
+import { getClassStatusColor, getClassStatusIcon } from '@/utils/utils';
+import { AuthContext } from '@/context/AuthContext';
+import LecturerQuickActions from '@/components/LecturerQuickActions';
 
 const { width } = Dimensions.get('window');
 
@@ -19,7 +25,16 @@ const LecturerDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
 
+  const { user } = useContext(AuthContext);
+
   const router = useRouter();
+
+  const handleSignOut = () => { 
+    signOut(auth)
+        .then(() => { console.log('Sign out successful'); }).catch((error) => {
+          console.error('Sign out error:', error);
+        })
+  }
 
   // Mock lecturer data
   const [lecturerData] = useState({
@@ -113,45 +128,13 @@ const LecturerDashboard = () => {
     }, 2000);
   };
 
-  const formatDate = (date) => {
+  const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
-  };
-
-  const getClassStatusColor = (status) => {
-    switch (status) {
-      case 'upcoming':
-        return '#3b82f6';
-      case 'ongoing':
-        return '#10b981';
-      case 'completed':
-        return '#6b7280';
-      default:
-        return '#6b7280';
-    }
-  };
-
-  const getClassStatusIcon = (status) => {
-    switch (status) {
-      case 'upcoming':
-        return 'time-outline';
-      case 'ongoing':
-        return 'play-circle';
-      case 'completed':
-        return 'checkmark-circle';
-      default:
-        return 'help-circle';
-    }
-  };
-
-  const getAttendanceColor = (percentage) => {
-    if (percentage >= 85) return '#10b981';
-    if (percentage >= 75) return '#f59e0b';
-    return '#ef4444';
   };
 
   const handleGenerateQR = (classId) => {
@@ -162,83 +145,83 @@ const LecturerDashboard = () => {
     router.navigate(`/lecturer/attendance/${classId}`);
   };
 
-  const renderWeeklyOverview = () => (
-    <View style={styles.overviewCard}>
-      <Text style={styles.cardTitle}>This Week Overview</Text>
-      <View style={styles.statsGrid}>
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>{weeklyStats.completedClasses}</Text>
-          <Text style={styles.statLabel}>Classes Taught</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={[styles.statNumber, { color: getAttendanceColor(weeklyStats.avgAttendance) }]}>
-            {weeklyStats.avgAttendance}%
-          </Text>
-          <Text style={styles.statLabel}>Avg Attendance</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>{weeklyStats.activeStudents}</Text>
-          <Text style={styles.statLabel}>Active Students</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>{weeklyStats.totalStudents}</Text>
-          <Text style={styles.statLabel}>Total Students</Text>
-        </View>
-      </View>
-    </View>
-  );
+  // const renderWeeklyOverview = () => (
+  //   <View style={styles.overviewCard}>
+  //     <Text style={styles.cardTitle}>This Week Overview</Text>
+  //     <View style={styles.statsGrid}>
+  //       <View style={styles.statBox}>
+  //         <Text style={styles.statNumber}>{weeklyStats.completedClasses}</Text>
+  //         <Text style={styles.statLabel}>Classes Taught</Text>
+  //       </View>
+  //       <View style={styles.statBox}>
+  //         <Text style={[styles.statNumber, { color: getAttendanceColor(weeklyStats.avgAttendance) }]}>
+  //           {weeklyStats.avgAttendance}%
+  //         </Text>
+  //         <Text style={styles.statLabel}>Avg Attendance</Text>
+  //       </View>
+  //       <View style={styles.statBox}>
+  //         <Text style={styles.statNumber}>{weeklyStats.activeStudents}</Text>
+  //         <Text style={styles.statLabel}>Active Students</Text>
+  //       </View>
+  //       <View style={styles.statBox}>
+  //         <Text style={styles.statNumber}>{weeklyStats.totalStudents}</Text>
+  //         <Text style={styles.statLabel}>Total Students</Text>
+  //       </View>
+  //     </View>
+  //   </View>
+  // );
 
-  const renderQuickActions = () => (
-    <View style={styles.quickActionsContainer}>
-      <Text style={styles.sectionTitle}>Quick Actions</Text>
-      <View style={styles.quickActionsGrid}>
-        <TouchableOpacity 
-          style={styles.quickActionItem} 
-          onPress={() => router.navigate('/lecturer/generate-qr')}
-        >
-          <View style={[styles.quickActionIcon, { backgroundColor: '#dbeafe' }]}>
-            <Ionicons name="qr-code" size={28} color="#3b82f6" />
-          </View>
-          <Text style={styles.quickActionText}>Generate QR</Text>
-        </TouchableOpacity>
+  // const renderQuickActions = () => (
+  //   <View style={styles.quickActionsContainer}>
+  //     <Text style={styles.sectionTitle}>Quick Actions</Text>
+  //     <View style={styles.quickActionsGrid}>
+  //       <TouchableOpacity 
+  //         style={styles.quickActionItem} 
+  //         onPress={() => router.navigate('/lecturer/generate-qr')}
+  //       >
+  //         <View style={[styles.quickActionIcon, { backgroundColor: '#dbeafe' }]}>
+  //           <Ionicons name="qr-code" size={28} color="#3b82f6" />
+  //         </View>
+  //         <Text style={styles.quickActionText}>Generate QR</Text>
+  //       </TouchableOpacity>
         
-        <TouchableOpacity 
-          style={styles.quickActionItem}
-          onPress={() => router.navigate('/lecturer/attendance-reports')}
-        >
-          <View style={[styles.quickActionIcon, { backgroundColor: '#dcfce7' }]}>
-            <Ionicons name="analytics" size={28} color="#10b981" />
-          </View>
-          <Text style={styles.quickActionText}>Reports</Text>
-        </TouchableOpacity>
+  //       <TouchableOpacity 
+  //         style={styles.quickActionItem}
+  //         onPress={() => router.navigate('/lecturer/attendance-reports')}
+  //       >
+  //         <View style={[styles.quickActionIcon, { backgroundColor: '#dcfce7' }]}>
+  //           <Ionicons name="analytics" size={28} color="#10b981" />
+  //         </View>
+  //         <Text style={styles.quickActionText}>Reports</Text>
+  //       </TouchableOpacity>
         
-        <TouchableOpacity 
-          style={styles.quickActionItem}
-          onPress={() => router.navigate('/lecturer/students')}
-        >
-          <View style={[styles.quickActionIcon, { backgroundColor: '#fef3c7' }]}>
-            <Ionicons name="people" size={28} color="#f59e0b" />
-          </View>
-          <Text style={styles.quickActionText}>Students</Text>
-        </TouchableOpacity>
+  //       <TouchableOpacity 
+  //         style={styles.quickActionItem}
+  //         onPress={() => router.navigate('/lecturer/students')}
+  //       >
+  //         <View style={[styles.quickActionIcon, { backgroundColor: '#fef3c7' }]}>
+  //           <Ionicons name="people" size={28} color="#f59e0b" />
+  //         </View>
+  //         <Text style={styles.quickActionText}>Students</Text>
+  //       </TouchableOpacity>
         
-        <TouchableOpacity 
-          style={styles.quickActionItem}
-          onPress={() => router.navigate('/lecturer/schedule')}
-        >
-          <View style={[styles.quickActionIcon, { backgroundColor: '#ede9fe' }]}>
-            <Ionicons name="calendar" size={28} color="#8b5cf6" />
-          </View>
-          <Text style={styles.quickActionText}>Schedule</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  //       <TouchableOpacity 
+  //         style={styles.quickActionItem}
+  //         onPress={() => router.navigate('/lecturer/schedule')}
+  //       >
+  //         <View style={[styles.quickActionIcon, { backgroundColor: '#ede9fe' }]}>
+  //           <Ionicons name="calendar" size={28} color="#8b5cf6" />
+  //         </View>
+  //         <Text style={styles.quickActionText}>Schedule</Text>
+  //       </TouchableOpacity>
+  //     </View>
+  //   </View>
+  // );
 
   const renderTodaysClasses = () => (
     <View style={styles.classesContainer}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Today's Classes</Text>
+        <Text style={styles.sectionTitle}>Today&apos;s Classes</Text>
         <Text style={styles.classCount}>{todaysClasses.length} classes</Text>
       </View>
       
@@ -367,11 +350,13 @@ const LecturerDashboard = () => {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.profileImage}>
-            <Ionicons name="person" size={24} color="#6b7280" />
+            <TouchableOpacity onPress={handleSignOut}>
+              <Ionicons name="person" size={24} color="#6b7280" />
+            </TouchableOpacity>
           </View>
           <View style={styles.headerInfo}>
             <Text style={styles.welcomeText}>Good morning,</Text>
-            <Text style={styles.lecturerName}>{lecturerData.name}</Text>
+            <Text style={styles.lecturerName}>{user?.displayName}</Text>
           </View>
         </View>
         <TouchableOpacity 
@@ -399,10 +384,12 @@ const LecturerDashboard = () => {
         }
       >
         {/* Weekly Overview */}
-        {renderWeeklyOverview()}
+        {/* {renderWeeklyOverview()} */}
+        <WeeklyOverview styles={styles} weeklyStats={weeklyStats}/>
 
         {/* Quick Actions */}
-        {renderQuickActions()}
+        {/* {renderQuickActions()} */}
+        <LecturerQuickActions styles={styles} />
 
         {/* Today's Classes */}
         {renderTodaysClasses()}
