@@ -11,21 +11,48 @@ import {
   Dimensions,
   Modal,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Camera, CameraView } from 'expo-camera';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { doc, DocumentData, getDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, DocumentData, DocumentReference, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import * as Location from "expo-location";
 import { AttendanceContext } from '@/context/AttendanceContext';
+import { AuthContext } from '@/context/AuthContext';
 
 const { width } = Dimensions.get('window');
 const SCAN_AREA_SIZE = width * 0.7;
 
+function isPointInPolygon(point: { latitude: number, longitude: number }, polygon: { latitude: number, longitude: number }[]): boolean {
+  const { latitude: x, longitude: y } = point;
+  let inside = false;
+
+  console.log("polygon:", polygon);
+  console.log("X:", x);
+  console.log("y:", y);
+  
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].latitude, yi = polygon[i].longitude;
+    const xj = polygon[j].latitude, yj = polygon[j].longitude;
+
+    const intersect = ((yi > y) !== (yj > y)) &&
+      (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
 const QRScannerScreen = () => {
-  const {setCurrentLectureData, ongoingLecture}= useContext(AttendanceContext);
+  const { setCurrentLectureData, ongoingLecture } = useContext(AttendanceContext);
+  const {user} = useContext(AuthContext);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  // const [locationStatus, locationPermission] = Location.useForegroundPermissions();
+  const [hasForegroundLocationPermission, setHasForegroundLocationPermission] = useState<boolean | null>(null);
+  const [hasBackgroundLocationPermission, setHasBackgroundLocationPermission] = useState<boolean | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<undefined | Location.LocationObject>(undefined);
   const [scanned, setScanned] = useState(false);
   const [scanning, setScanning] = useState(true);
   const [flashOn, setFlashOn] = useState(false);
@@ -39,11 +66,88 @@ const QRScannerScreen = () => {
     time: string;
     date: string;
     status: string;
+
+    location_id?: DocumentReference; // Add location_id to the type
+    locationData?: [] | DocumentData | { coordinates: { latitude: number; longitude: number }[] }; // Add resolved location data
+    start_time?: Timestamp | Date; // Add class start time
+    end_time?: Timestamp | Date; // Add class end time
+    attendanceLogDocId?: string; // To store reference to background log document
   };
-  const [attendanceDisplayData, setAttendanceDisplayData] = useState<AttendanceDisplayData| DocumentData | null>(null);
+  const [attendanceDisplayData, setAttendanceDisplayData] = useState<AttendanceDisplayData | DocumentData | null>(null);
   const [isFocused, setIsFocused] = useState(false); // Changed from null to false
   const [cameraKey, setCameraKey] = useState(0); // Add key to force camera remount
   const router = useRouter();
+
+  // if (locationStatus === null) {
+  //   locationPermission();
+  // }
+
+  // Only get location on entering page, and clean up on leave
+  // useEffect(() => {
+  //   let isMounted = true;
+  //   const getCurrentLocation = async () => {
+  //     try {
+  //       const currentLocation = await Location.getCurrentPositionAsync({
+  //         accuracy: Location.LocationAccuracy.Highest
+  //       });
+  //       if (isMounted) setLocation(currentLocation);
+  //     } catch (error) {
+  //       if (isMounted) setLocation(undefined);
+  //     }
+  //   };
+  //   getCurrentLocation();
+  //   return () => {
+  //     isMounted = false;
+  //   };
+  // }, []);
+
+  // useEffect(() => {
+  //   const getCurrentLocation = async () => {
+  //     let currentLocation = await Location.getCurrentPositionAsync({
+  //       accuracy: Location.LocationAccuracy.Highest
+  //     });
+  //     setLocation(currentLocation);
+  //     console.log("Current Location:", currentLocation);
+  //   };
+
+  //   getCurrentLocation();
+  // });
+
+  useEffect(() => {
+    const requestAllPermissions = async () => {
+      // Foreground Location
+      const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+      setHasForegroundLocationPermission(foregroundStatus === 'granted');
+
+      // Background Location (if foreground is granted)
+      let backgroundStatus = 'denied';
+      if (foregroundStatus === 'granted') {
+        if (Platform.OS === 'ios') {
+          const { status } = await Location.requestBackgroundPermissionsAsync();
+          backgroundStatus = status;
+        } else { // Android specific
+          // On Android, background location typically needs to be requested separately if not 'always' was granted initially
+          const { status } = await Location.requestBackgroundPermissionsAsync();
+          backgroundStatus = status;
+        }
+      }
+      setHasBackgroundLocationPermission(backgroundStatus === 'granted');
+
+      if (foregroundStatus !== 'granted') {
+        Alert.alert(
+          'Location Permission Required',
+          'Please grant foreground location access to verify your attendance location.'
+        );
+      }
+      if (backgroundStatus !== 'granted') {
+        Alert.alert(
+          'Background Location Recommended',
+          'Allow "Always" location access to continuously verify your presence in the lecture, even when the app is in the background. You can enable this in your device settings. Without it, continuous geofence checks may not work.'
+        );
+      }
+    };
+    requestAllPermissions();
+  }, []);
 
   // Animation values
   const scanLineAnim = useRef(new Animated.Value(0)).current;
@@ -55,30 +159,64 @@ const QRScannerScreen = () => {
     React.useCallback(() => {
       setIsFocused(true);
       resetScanner();
-      
       // Force camera remount by changing key
       setCameraKey(prev => prev + 1);
-      
-      // Re-check permissions and start animations
-      const initializeCamera = async () => {
-        await getCameraPermissions();
+
+
+      const initializeScreen = async () => {
+        await getCameraPermissions(); // Ensure camera permissions are checked
+
+        if (hasForegroundLocationPermission) {
+          await getCurrentUserLocation(); // Get initial location
+        } else {
+          // Re-request if somehow not granted, or inform user
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status === 'granted') {
+            setHasForegroundLocationPermission(true);
+            await getCurrentUserLocation();
+          } else {
+            console.warn('Foreground location permission not granted on focus, and user denied again.');
+            // Optionally, direct user to settings here
+          }
+        }
         startScanAnimation();
       };
-      
-      initializeCamera();
-      
+
+      initializeScreen();
+
       return () => {
         setIsFocused(false);
         // Clean up animations when leaving screen
         scanLineAnim.stopAnimation();
         pulseAnim.stopAnimation();
         successAnim.stopAnimation();
-        
+
         // Reset flash when leaving
         setFlashOn(false);
       };
-    }, [])
+    }, [hasForegroundLocationPermission, hasBackgroundLocationPermission])
   );
+
+  const getCurrentUserLocation = async () => {
+    try {
+      // setLoading(true);
+      const locationResult = await Location.getCurrentPositionAsync({
+        accuracy: Location.LocationAccuracy.Highest,
+      });
+      setCurrentLocation(locationResult);
+      console.log('Current Foreground Location:', locationResult.coords);
+    } catch (error) {
+      console.error('Error getting current location:', error);
+      Alert.alert(
+        'Location Error',
+        'Could not get your current location. Please ensure location services are enabled and permissions are granted.',
+        [{ text: 'OK', onPress: () => router.back() }] // Go back if location is critical
+      );
+      setCurrentLocation(undefined);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Initial setup only
@@ -99,15 +237,15 @@ const QRScannerScreen = () => {
 
   const startScanAnimation = () => {
     if (!isFocused) return;
-    
+
     // Stop any existing animations first
     scanLineAnim.stopAnimation();
     pulseAnim.stopAnimation();
-    
+
     // Reset animation values
     scanLineAnim.setValue(0);
     pulseAnim.setValue(1);
-    
+
     // Scanning line animation
     const scanLineAnimation = Animated.loop(
       Animated.sequence([
@@ -154,32 +292,106 @@ const QRScannerScreen = () => {
     setLoading(true);
 
     try {
-      // Validate QR code format
-      // const qrData = JSON.parse(data);
-      
-      // if (!qrData.classId || !qrData.sessionId || !qrData.timestamp) {
-      //   throw new Error('Invalid QR code format');
+      if (!currentLocation) {
+        throw new Error('Current location not available. Please ensure location services are enabled and permissions are granted.');
+      }
+
+      // 1. Fetch class session details
+      const classSessionDocRef = doc(db, 'class_session', data);
+      const classSessionDocSnap = await getDoc(classSessionDocRef);
+      const classSessionData = classSessionDocSnap.data() as AttendanceDisplayData;
+
+      if (!classSessionData || !classSessionData.location_id) {
+        throw new Error('Class session or location reference not found.');
+      }
+      console.log("passed");
+
+      // 2. Fetch the referenced location document
+      // const locationDocRef = doc(db, classSessionData.location_id); // Assuming location_id is a path string
+      const locationDocRef = classSessionData.location_id; // Assuming location_id is a path string
+      console.log("passed location")
+      const locationDocSnap = await getDoc(locationDocRef);
+      const locationData = locationDocSnap.data();
+      console.log(locationData);
+
+      if (!locationData || !locationData.coordinates || locationData.coordinates.length < 3) {
+        throw new Error('Geofence polygon coordinates not found for this location.');
+      }
+
+      const polygon = locationData.coordinates;
+
+      // 3. Perform Foreground Geofence Check
+      const currentPoint = {
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+      };
+
+      const isInGeofence = isPointInPolygon({latitude: 7.6240666, longitude: 4.206619}, polygon);
+
+      if (!isInGeofence) {
+        throw new Error('You are outside the designated lecture area. Cannot mark attendance.');
+      }
+
+      console.log('Initial scan: User is within geofence.');
+
+      // 4. Mark Attendance (if within geofence)
+      // You might have a separate Firebase function for marking attendance,
+      // which would also record the initial location check.
+      // For this example, let's create a log entry in Firestore.
+      if (!user?.uid) {
+        throw new Error('User ID is not available. Please log in again.');
+      }
+      const attendanceLogRef = await addDoc(collection(db, 'attendance_logs'), {
+        userId: doc(db, 'users', user.uid), // Replace with actual user ID
+        sessionId: classSessionDocRef, // QR code data is the session ID
+        timestamp: Timestamp.now(),
+        initialLocation: {
+          latitude: currentPoint.latitude,
+          longitude: currentPoint.longitude,
+          isInGeofence: true,
+        },
+        // You can add more fields related to the class/user here
+        // Store location data and times for background task reference
+        locationData: locationData, // Pass the polygon data
+        start_time: classSessionData.start_time,
+        end_time: classSessionData.end_time,
+        // Initialize fields for background checks
+        currentIsInGeofence: true,
+        lastCheckedAt: Timestamp.now(),
+        halfDurationChecked: false, // Flag to ensure half-duration check is only logged once
+        lastGeofenceStatus: true, // Track last status for notifications
+      });
+
+      // Pass the log document ID to the ongoingLecture context for background task
+      const updatedLectureData: AttendanceDisplayData = {
+        ...classSessionData,
+        locationData: locationData,
+        attendanceLogDocId: attendanceLogRef.id, // Store the log ID
+      };
+      setCurrentLectureData(updatedLectureData);
+
+      // 5. Start Background Location Tracking
+      // if (hasBackgroundLocationPermission && hasNotificationPermission) {
+      //   await startBackgroundLocationTracking(updatedLectureData);
+      // } else {
+      //   Alert.alert(
+      //     'Background Tracking Limited',
+      //     'Background location tracking and/or notifications are not fully permitted. Continuous geofence checks may be limited.'
+      //   );
       // }
 
-      // // Check if QR code is still valid (not expired)
-      // const currentTime = new Date().getTime();
-      // const qrTime = new Date(qrData.timestamp).getTime();
-      // const timeDiff = Math.abs(currentTime - qrTime);
-      // const maxValidTime = 10 * 60 * 1000; // 10 minutes
+      setLoading(false);
+      showSuccessAnimation();
 
-      // if (timeDiff > maxValidTime) {
-      //   throw new Error('QR code has expired');
-      // }
-
-
-      await markAttendance(data);
     } catch (error) {
-      console.error('QR Scan Error:', error);
+      console.error('QR Scan/Geofence Error:', error);
       showErrorAlert(
         typeof error === 'object' && error !== null && 'message' in error
           ? (error as { message: string }).message
-          : 'An unexpected error occurred'
+          : 'An unexpected error occurred during QR scan or geofence check.'
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -246,7 +458,7 @@ const QRScannerScreen = () => {
     setAttendanceDisplayData(null);
     setFlashOn(false);
     successAnim.setValue(0);
-    
+
     // Restart animations if screen is focused
     if (isFocused) {
       setTimeout(() => {
@@ -269,11 +481,11 @@ const QRScannerScreen = () => {
     );
   };
 
-  if (hasPermission === null) {
+  if (hasPermission === null || hasForegroundLocationPermission === null || hasBackgroundLocationPermission === null) {
     return (
       <View style={styles.permissionContainer}>
         <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.permissionText}>Requesting camera permission...</Text>
+        <Text style={styles.permissionText}>Requesting permissions...</Text>
       </View>
     );
   }
@@ -293,24 +505,40 @@ const QRScannerScreen = () => {
     );
   }
 
+  if (hasForegroundLocationPermission === false) {
+    return (
+      <SafeAreaView style={styles.permissionContainer}>
+        <Ionicons name="location-outline" size={80} color="#9ca3af" />
+        <Text style={styles.permissionTitle}>Location Permission Required</Text>
+        <Text style={styles.permissionText}>
+          Please allow location access to verify your attendance.
+        </Text>
+        <TouchableOpacity style={styles.permissionButton} onPress={() => Location.requestForegroundPermissionsAsync()}>
+          <Text style={styles.permissionButtonText}>Grant Permission</Text>
+        </TouchableOpacity>
+        {/* You might want a button to open app settings here for persistent denial */}
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
-      
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={() => router.back()}
         >
           <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Scan QR Code</Text>
         <TouchableOpacity style={styles.flashButton} onPress={toggleFlash}>
-          <Ionicons 
-            name={flashOn ? "flash" : "flash-off"} 
-            size={24} 
-            color="#ffffff" 
+          <Ionicons
+            name={flashOn ? "flash" : "flash-off"}
+            size={24}
+            color="#ffffff"
           />
         </TouchableOpacity>
       </View>
@@ -334,13 +562,13 @@ const QRScannerScreen = () => {
         <View style={styles.overlay}>
           {/* Top overlay */}
           <View style={styles.overlayTop} />
-          
+
           {/* Middle section with scan area */}
           <View style={styles.overlayMiddle}>
             <View style={styles.overlaySide} />
-            
+
             {/* Scan Area */}
-            <Animated.View 
+            <Animated.View
               style={[
                 styles.scanArea,
                 { transform: [{ scale: pulseAnim }] }
@@ -351,7 +579,7 @@ const QRScannerScreen = () => {
               <View style={[styles.corner, styles.topRight]} />
               <View style={[styles.corner, styles.bottomLeft]} />
               <View style={[styles.corner, styles.bottomRight]} />
-              
+
               {/* Scanning line */}
               {scanning && !scanned && !loading && isFocused && (
                 <Animated.View
@@ -371,10 +599,10 @@ const QRScannerScreen = () => {
                 />
               )}
             </Animated.View>
-            
+
             <View style={styles.overlaySide} />
           </View>
-          
+
           {/* Bottom overlay */}
           <View style={styles.overlayBottom} />
         </View>
@@ -385,8 +613,8 @@ const QRScannerScreen = () => {
             {loading ? 'Processing...' : 'Position QR code within frame'}
           </Text>
           <Text style={styles.instructionText}>
-            {loading 
-              ? 'Please wait while we mark your attendance' 
+            {loading
+              ? 'Please wait while we mark your attendance'
               : 'Hold steady and ensure good lighting'
             }
           </Text>
@@ -412,7 +640,7 @@ const QRScannerScreen = () => {
       {/* Success Modal */}
       <Modal visible={scanSuccess} transparent animationType="fade">
         <View style={styles.successOverlay}>
-          <Animated.View 
+          <Animated.View
             style={[
               styles.successContainer,
               {
