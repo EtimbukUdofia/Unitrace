@@ -65,49 +65,41 @@ export const AttendanceProvider = ({ children }: PropsWithChildren) => {
       setAttendanceContextIsLoading(true);
 
       try {
-        if (!currentLectureData.location_id || !currentLectureData.course_id || !currentLectureData.lecturer_id) { 
-          console.error("Missing required references in currentLectureData:", currentLectureData);
-          throw new Error("Lecture data is incomplete. Cannot fetch details.");
+        // New schema: check for required embedded fields
+        if (!currentLectureData.location || !currentLectureData.lecturer || !currentLectureData.subject || !currentLectureData.classCode || !currentLectureData.start_time) {
+          console.error("Missing required fields in currentLectureData:", currentLectureData);
+          throw new Error("Lecture details is incomplete. cannot fetch details.");
         }
 
-        const locationPromise = getDoc(currentLectureData.location_id);
-        const coursePromise = getDoc(currentLectureData.course_id);
-        const lecturerPromise = getDoc(currentLectureData.lecturer_id);
+        // Use embedded data directly
+        const locationName = currentLectureData.location.name || "Unknown Location";
+        const locationData = currentLectureData.location.coordinates || [];
+        const courseTitle = currentLectureData.subject || "Unknown Subject";
+        const courseCode = currentLectureData.classCode || "N/A";
+        const lecturerName = currentLectureData.lecturer.name || "Unknown Lecturer";
 
-        const [locationDoc, courseDoc, lecturerDoc] = await Promise.all([
-          locationPromise as DocumentData,
-          coursePromise as DocumentData,
-          lecturerPromise as DocumentData,
-        ]);
+        const lectureStartTime = currentLectureData.start_time instanceof Timestamp
+          ? currentLectureData.start_time.toDate()
+          : (currentLectureData.start_time ? new Date(currentLectureData.start_time) : null);
 
-        const locationName = locationDoc.exists() ? locationDoc.data().name : "Unknown Location";
-        const locationData = locationDoc.exists() ? locationDoc.data().coordinates : [];
-        const courseTitle = courseDoc.exists() ? courseDoc.data().title : "Unknown Subject";
-        const courseCode = courseDoc.exists() ? courseDoc.data().code : "N/A";
-        const lecturerName = lecturerDoc.exists() ? lecturerDoc.data().fullName : "Unknown Lecturer";
-
-        const lectureStartTime = currentLectureData.startTime instanceof Timestamp
-          ? currentLectureData.startTime.toDate()
-          : (currentLectureData.startTime ? new Date(currentLectureData.startTime) : null);
-
-        const lectureEndTime = currentLectureData.endTime instanceof Timestamp
-          ? currentLectureData.endTime.toDate()
-          : (currentLectureData.endTime ? new Date(currentLectureData.endTime) : null);
+        const lectureEndTime = currentLectureData.end_time instanceof Timestamp
+          ? currentLectureData.end_time.toDate()
+          : (currentLectureData.end_time ? new Date(currentLectureData.end_time) : null);
 
         setOngoingLecture({
-          id: currentLectureData.sessionId || 'N/A', // Consider using a more unique ID if available
+          id: currentLectureData.id || currentLectureData.sessionId || 'N/A',
           courseTitle: courseTitle,
           lecturer: lecturerName,
-          time: currentLectureData.start_time.toDate().toLocaleTimeString('en-us', { hour: '2-digit', minute: '2-digit', hour12: true }),
-          date: currentLectureData.start_time.toDate().toLocaleDateString('en-us', { weekday: 'long', month: 'short', day: 'numeric' }),
+          time: lectureStartTime ? lectureStartTime.toLocaleTimeString('en-us', { hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+          date: lectureStartTime ? lectureStartTime.toLocaleDateString('en-us', { weekday: 'long', month: 'short', day: 'numeric' }) : '',
           location: locationName,
           status: currentLectureData.status,
           code: courseCode,
 
-          location_id: currentLectureData.location_id,
-          locationData: locationData as GeoPoint[],
-          startTime: currentLectureData.startTime || lectureStartTime,
-          endTime: currentLectureData.endTime || lectureEndTime,
+          // No longer using Firestore references
+          locationData: locationData,
+          startTime: lectureStartTime,
+          endTime: lectureEndTime,
           attendanceLogDocId: currentLectureData.attendanceLogDocId,
           halfDurationChecked: currentLectureData.halfDurationChecked || false,
           lastGeofenseStatus: currentLectureData.lastGeofenseStatus || true,
