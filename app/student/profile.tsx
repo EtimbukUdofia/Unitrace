@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -16,33 +16,40 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/config/firebase';
+import { AuthContext } from '@/context/AuthContext';
+import { AttendanceContext } from '@/context/AttendanceContext';
 
 const StudentProfileScreen = () => {
+  const { user, userData, isLoading } = useContext(AuthContext);
+  const { clearOngoingLecture } = useContext(AttendanceContext);
   const [refreshing, setRefreshing] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const router = useRouter();
 
-  // Mock student data - replace with actual API calls
+  // Use actual user data from AuthContext instead of mock data
   const [studentData, setStudentData] = useState({
-    name: 'John Doe',
-    email: 'john.doe@university.edu',
-    phone: '+1 (555) 123-4567',
-    studentId: 'ST12345',
-    department: 'Computer Science',
+    name: userData?.fullName || 'Student Name',
+    email: userData?.email || 'student@university.edu',
+    phone: userData?.phone || '+1 (555) 123-4567',
+    studentId: userData?.matricNo || 'ST12345',
+    department: userData?.department || 'Computer Science',
     program: 'Bachelor of Science',
     semester: '6th Semester',
     batch: '2022-2026',
     cgpa: '3.85',
     profileImage: null,
-    address: '123 University Street, Campus City',
-    emergencyContact: '+1 (555) 987-6543',
-    dateOfBirth: '1999-03-15',
-    bloodGroup: 'O+',
+    address: userData?.address || '123 University Street, Campus City',
+    emergencyContact: userData?.emergencyContact || '+1 (555) 987-6543',
+    dateOfBirth: userData?.dateOfBirth || '1999-03-15',
+    bloodGroup: userData?.bloodGroup || 'O+',
   });
 
   const [editedData, setEditedData] = useState(studentData);
@@ -64,6 +71,28 @@ const StudentProfileScreen = () => {
   useEffect(() => {
     setEditedData(studentData);
   }, [studentData]);
+
+  // Update student data when userData changes
+  useEffect(() => {
+    if (userData) {
+      setStudentData({
+        name: userData.fullName || 'Student Name',
+        email: userData.email || 'student@university.edu',
+        phone: userData.phone || '+1 (555) 123-4567',
+        studentId: userData.matricNo || 'ST12345',
+        department: userData.department || 'Computer Science',
+        program: 'Bachelor of Science',
+        semester: '6th Semester',
+        batch: '2022-2026',
+        cgpa: '3.85',
+        profileImage: null,
+        address: userData.address || '123 University Street, Campus City',
+        emergencyContact: userData.emergencyContact || '+1 (555) 987-6543',
+        dateOfBirth: userData.dateOfBirth || '1999-03-15',
+        bloodGroup: userData.bloodGroup || 'O+',
+      });
+    }
+  }, [userData]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -117,7 +146,7 @@ const StudentProfileScreen = () => {
     });
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -126,9 +155,29 @@ const StudentProfileScreen = () => {
         { 
           text: 'Logout', 
           style: 'destructive',
-          onPress: () => {
-            // Logout logic here
-            router.replace('/auth/login');
+          onPress: async () => {
+            try {
+              setIsLoggingOut(true);
+              
+              // Clear any ongoing lecture data
+              clearOngoingLecture();
+              
+              // Sign out from Firebase
+              await signOut(auth);
+              
+              // Navigate to auth screen
+              router.replace('/auth');
+              
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert(
+                'Logout Error',
+                'There was an error logging out. Please try again.',
+                [{ text: 'OK' }]
+              );
+            } finally {
+              setIsLoggingOut(false);
+            }
           }
         }
       ]
@@ -173,20 +222,26 @@ const StudentProfileScreen = () => {
       </View>
       
       <View style={styles.profileInfo}>
-        <Text style={styles.profileName}>{studentData.name}</Text>
-        <Text style={styles.profileId}>{studentData.studentId}</Text>
-        <Text style={styles.profileDepartment}>{studentData.department}</Text>
+        <Text style={styles.profileName}>
+          {isLoading ? 'Loading...' : studentData.name}
+        </Text>
+        <Text style={styles.profileId}>
+          {isLoading ? 'Loading...' : studentData.studentId}
+        </Text>
+        <Text style={styles.profileDepartment}>
+          {isLoading ? 'Loading...' : studentData.department}
+        </Text>
         
         <View style={styles.profileStats}>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>{attendanceStats.percentage}%</Text>
             <Text style={styles.statLabel}>Attendance</Text>
           </View>
-          <View style={styles.statDivider} />
+          {/* <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>{studentData.cgpa}</Text>
             <Text style={styles.statLabel}>CGPA</Text>
-          </View>
+          </View> */}
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>{attendanceStats.currentStreak}</Text>
@@ -443,12 +498,19 @@ const StudentProfileScreen = () => {
       </TouchableOpacity>
 
       <TouchableOpacity 
-        style={[styles.actionButton, styles.logoutButton]}
+        style={[styles.actionButton, styles.logoutButton, isLoggingOut && styles.logoutButtonDisabled]}
         onPress={handleLogout}
+        disabled={isLoggingOut}
       >
-        <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-        <Text style={[styles.actionButtonText, styles.logoutButtonText]}>Logout</Text>
-        <Ionicons name="chevron-forward" size={16} color="#ef4444" />
+        <Ionicons 
+          name={isLoggingOut ? "hourglass-outline" : "log-out-outline"} 
+          size={20} 
+          color="#ef4444" 
+        />
+        <Text style={[styles.actionButtonText, styles.logoutButtonText]}>
+          {isLoggingOut ? 'Logging out...' : 'Logout'}
+        </Text>
+        {!isLoggingOut && <Ionicons name="chevron-forward" size={16} color="#ef4444" />}
       </TouchableOpacity>
     </View>
   );
@@ -803,6 +865,9 @@ const styles = StyleSheet.create({
   },
   logoutButtonText: {
     color: '#ef4444',
+  },
+  logoutButtonDisabled: {
+    backgroundColor: '#f3f4f6',
   },
   editActions: {
     flexDirection: 'row',
