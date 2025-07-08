@@ -260,6 +260,9 @@ const StudentDashboard = () => {
           <Ionicons name="log-out-outline" size={24} color="#1f2937" />
           <View style={styles.notificationBadge} />
         </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/student/history')} style={styles.historyButton}>
+          <Ionicons name="analytics" size={22} color="#3b82f6" />
+        </TouchableOpacity>
       </View>
 
       {/* Date */}
@@ -626,6 +629,9 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 20,
+  },
+  historyButton: {
+    padding: 8,
   },
 });
 

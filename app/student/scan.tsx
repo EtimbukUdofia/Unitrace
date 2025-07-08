@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Camera, CameraView } from 'expo-camera';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { addDoc, collection, doc, DocumentData, DocumentReference, getDoc, Timestamp } from 'firebase/firestore';
+import { addDoc, collection, doc, DocumentData, DocumentReference, getDoc, Timestamp, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import * as Location from "expo-location";
 import { AttendanceContext } from '@/context/AttendanceContext';
@@ -47,7 +47,7 @@ function isPointInPolygon(point: { latitude: number, longitude: number }, polygo
 
 const QRScannerScreen = () => {
   const { setCurrentLectureData, ongoingLecture } = useContext(AttendanceContext);
-  const {user, initialLocation} = useContext(AuthContext);
+  const {user, initialLocation, userData} = useContext(AuthContext);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   // const [locationStatus, locationPermission] = Location.useForegroundPermissions();
   const [hasForegroundLocationPermission, setHasForegroundLocationPermission] = useState<boolean | null>(null);
@@ -307,21 +307,36 @@ const QRScannerScreen = () => {
       }
 
       // 1. Fetch class session details
-      const classSessionDocRef = doc(db, 'class_session', data);
+      const classSessionDocRef = doc(db, 'class_sessions', data);
       const classSessionDocSnap = await getDoc(classSessionDocRef);
       const classSessionData = classSessionDocSnap.data() as AttendanceDisplayData;
 
-      if (!classSessionData || !classSessionData.location_id) {
-        throw new Error('Class session or location reference not found.');
+      if (!classSessionData || !classSessionData.location) {
+        throw new Error('Class session or location not found.');
       }
       console.log("passed");
 
-      // 2. Fetch the referenced location document
-      // const locationDocRef = doc(db, classSessionData.location_id); // Assuming location_id is a path string
-      const locationDocRef = classSessionData.location_id; // Assuming location_id is a path string
-      console.log("passed location")
-      const locationDocSnap = await getDoc(locationDocRef);
-      const locationData = locationDocSnap.data();
+      // Check for existing attendance log for this user and session
+      const attendanceLogQuery = query(
+        collection(db, 'attendance_logs'),
+        where('userId', '==', user?.uid),
+        where('sessionId', '==', classSessionDocSnap.id)
+      );
+      const attendanceLogSnap = await getDocs(attendanceLogQuery);
+      if (!attendanceLogSnap.empty) {
+        setLoading(false);
+        Alert.alert(
+          'Already Marked',
+          'You have already marked attendance for this class. You cannot scan the QR code again.',
+          [
+            { text: 'OK', onPress: resetScanner }
+          ]
+        );
+        return;
+      }
+
+      // 2. Use the embedded location object
+      const locationData = classSessionData.location;
       console.log(locationData);
 
       if (!locationData || !locationData.coordinates || locationData.coordinates.length < 3) {
@@ -352,9 +367,11 @@ const QRScannerScreen = () => {
         throw new Error('User ID is not available. Please log in again.');
       }
       const attendanceLogRef = await addDoc(collection(db, 'attendance_logs'), {
-        userId: doc(db, 'users', user.uid), // Replace with actual user ID
-        sessionId: classSessionDocRef, // QR code data is the session ID
+        userId: user.uid, // Store as string for easier querying
+        sessionId: classSessionDocSnap.id, // Store as string for easier querying
         timestamp: Timestamp.now(),
+        studentName: userData?.fullName || '',
+        matricNo: userData?.matricNo || '',
         initialLocation: {
           latitude: currentPoint.latitude,
           longitude: currentPoint.longitude,
@@ -376,7 +393,7 @@ const QRScannerScreen = () => {
       // Pass the log document ID to the ongoingLecture context for background task
       const updatedLectureData: AttendanceDisplayData = {
         ...classSessionData,
-        locationData: locationData,
+        id: classSessionDocSnap.id, // Add the session document ID
         attendanceLogDocId: attendanceLogRef.id, // Store the log ID
       };
       setCurrentLectureData(updatedLectureData);
@@ -470,12 +487,10 @@ const QRScannerScreen = () => {
     setFlashOn(false);
     successAnim.setValue(0);
 
-    // Restart animations if screen is focused
-    if (isFocused) {
-      setTimeout(() => {
-        startScanAnimation();
-      }, 100);
-    }
+    // Always restart animations
+    setTimeout(() => {
+      startScanAnimation();
+    }, 100);
   };
 
   const toggleFlash = () => {
