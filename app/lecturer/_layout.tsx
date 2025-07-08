@@ -37,6 +37,20 @@ export default function TabLayout() {
           <Ionicons name={focused ? 'calendar' : 'calendar-outline'} color={color} size={24} />
         )
       }} />
+
+      <Tabs.Screen name="live" options={{
+        title: 'Live',
+        tabBarIcon: ({ color, focused }) => (
+          <Ionicons name={focused ? 'people' : 'people-outline'} color={color} size={24} />
+        )
+      }} />
+      
+      <Tabs.Screen name="report" options={{
+        title: 'Report',
+        tabBarIcon: ({ color, focused }) => (
+          <Ionicons name={focused ? 'analytics' : 'analytics-outline'} color={color} size={24} />
+        )
+      }} />
       
       {/* <Tabs.Screen name="profile" options={{
         title: 'Profile',

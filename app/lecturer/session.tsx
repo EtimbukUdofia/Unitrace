@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
+import { collection, onSnapshot, addDoc, Timestamp, doc, updateDoc, getDocs, query, where } from 'firebase/firestore';
+import { db } from '@/config/firebase';
+import { AuthContext } from '@/context/AuthContext';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as MediaLibrary from 'expo-media-library';
 
 // const { width } = Dimensions.get('window');
 
@@ -28,18 +34,15 @@ const GenerateQRPage = () => {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [sessionId, setSessionId] = useState('');
   const qrRef = useRef<QRCode | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Form state
   type LocationType = {
-    id: number;
+    id: string;
     name: string;
-    building: string;
-    capacity: number;
-    coordinates: {
-      latitude: number;
-      longitude: number;
-      radius: number;
-    };
+    coordinates: { latitude: number; longitude: number }[];
+    createdAt?: any;
   };
 
   const [formData, setFormData] = useState<{
@@ -58,72 +61,20 @@ const GenerateQRPage = () => {
     notes: '',
   });
 
-  // Preset locations with boundary coordinates
-  const [locations] = useState([
-    {
-      id: 1,
-      name: 'Computer Lab 301',
-      building: 'Science Block A',
-      capacity: 45,
-      coordinates: {
-        latitude: 6.5244,
-        longitude: 3.3792,
-        radius: 50, // meters
-      },
-    },
-    {
-      id: 2,
-      name: 'Lecture Room 205',
-      building: 'Main Academic Block',
-      capacity: 60,
-      coordinates: {
-        latitude: 6.5246,
-        longitude: 3.3794,
-        radius: 30,
-      },
-    },
-    {
-      id: 3,
-      name: 'Software Engineering Lab',
-      building: 'Engineering Block',
-      capacity: 35,
-      coordinates: {
-        latitude: 6.5248,
-        longitude: 3.3796,
-        radius: 40,
-      },
-    },
-    {
-      id: 4,
-      name: 'Seminar Hall 401',
-      building: 'Conference Center',
-      capacity: 80,
-      coordinates: {
-        latitude: 6.5250,
-        longitude: 3.3798,
-        radius: 60,
-      },
-    },
-    {
-      id: 5,
-      name: 'Database Lab',
-      building: 'Science Block B',
-      capacity: 40,
-      coordinates: {
-        latitude: 6.5252,
-        longitude: 3.3800,
-        radius: 45,
-      },
-    },
-  ]);
+  // Real locations from Firestore
+  const [locations, setLocations] = useState<any[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(true);
 
-  // Mock subjects for auto-fill (in real app, fetch from user's subjects)
-  const [userSubjects] = useState([
-    { code: 'CSC301', name: 'Data Structures & Algorithms' },
-    { code: 'CSC401', name: 'Database Management Systems' },
-    { code: 'CSC501', name: 'Software Engineering' },
-    { code: 'MTH201', name: 'Discrete Mathematics' },
-  ]);
+  const { user, userData } = useContext(AuthContext);
+
+  useEffect(() => {
+    setLocationsLoading(true);
+    const unsub = onSnapshot(collection(db, 'location'), (snap) => {
+      setLocations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLocationsLoading(false);
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     // If classId is provided, pre-fill form with class data
@@ -131,6 +82,31 @@ const GenerateQRPage = () => {
       loadClassData(classId);
     }
   }, [classId]);
+
+  useEffect(() => {
+    if (!qrGenerated || !sessionId) return;
+    // Listen for session status changes
+    const sessionRef = doc(db, 'class_sessions', sessionId);
+    const unsub = onSnapshot(sessionRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.status === 'ended') {
+          // Reset state to allow new session
+          setQrGenerated(false);
+          setSessionId('');
+          setFormData({
+            subject: '',
+            classCode: '',
+            sessionTitle: '',
+            duration: '120',
+            selectedLocation: null,
+            notes: '',
+          });
+        }
+      }
+    });
+    return () => unsub();
+  }, [qrGenerated, sessionId]);
 
   const loadClassData = (id:any) => {
     // Mock function to load class data
@@ -146,13 +122,7 @@ const GenerateQRPage = () => {
     }));
   };
 
-  const generateSessionId = () => {
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
-    return `${timestamp}-${random}`.toUpperCase();
-  };
-
-  const handleInputChange = (field, value) => {
+  const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
@@ -195,25 +165,58 @@ const GenerateQRPage = () => {
 
   const handleGenerateQR = async () => {
     if (!validateForm()) return;
-    
     setLoading(true);
-    
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const newSessionId = generateSessionId();
-      setSessionId(newSessionId);
-      setQrGenerated(true);
-      
-      // In real app, save session data to backend
-      console.log('Session created:', {
-        sessionId: newSessionId,
-        ...formData,
-        createdAt: new Date().toISOString(),
-        status: 'active',
+      // 1. Prevent lecturer from starting more than one active/pending session
+      const lecturerQuery = query(
+        collection(db, 'class_sessions'),
+        where('lecturer.id', '==', user?.uid || ''),
+        where('status', 'in', ['pending', 'active', 'ongoing'])
+      );
+      const lecturerSessionsSnap = await getDocs(lecturerQuery);
+      if (!lecturerSessionsSnap.empty) {
+        setLoading(false);
+        Alert.alert('Not Allowed', 'You already have an ongoing or pending class session. Please end it before starting a new one.');
+        return;
+      }
+
+      // 2. Prevent duplicate course session by any lecturer
+      const courseQuery = query(
+        collection(db, 'class_sessions'),
+        where('classCode', '==', formData.classCode),
+        where('status', 'in', ['pending', 'active', 'ongoing'])
+      );
+      const courseSessionsSnap = await getDocs(courseQuery);
+      if (!courseSessionsSnap.empty) {
+        setLoading(false);
+        Alert.alert('Not Allowed', 'A session for this course is already ongoing or pending. Please wait until it is ended before creating another.');
+        return;
+      }
+
+      // Create the class session in Firestore
+      const docRef = await addDoc(collection(db, 'class_sessions'), {
+        subject: formData.subject,
+        classCode: formData.classCode,
+        sessionTitle: formData.sessionTitle,
+        duration: formData.duration,
+        location: formData.selectedLocation ? {
+          id: formData.selectedLocation.id,
+          name: formData.selectedLocation.name,
+          coordinates: formData.selectedLocation.coordinates,
+        } : null,
+        notes: formData.notes,
+        createdAt: Timestamp.now(),
+        status: 'pending',
+        start_time: null,
+        end_time: null,
+        lecturer: user && userData ? {
+          id: user.uid,
+          name: userData.fullName || user.displayName || '',
+          email: user.email || '',
+        } : null,
       });
-      
+      setSessionId(docRef.id);
+      setQrGenerated(true);
     } catch (error) {
       Alert.alert('Error', 'Failed to generate QR code. Please try again.');
     } finally {
@@ -229,18 +232,68 @@ const GenerateQRPage = () => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Start Session',
-          onPress: () => {
+          onPress: async () => {
+            // Update session document: set start_time and status
+            if (sessionId) {
+              const sessionRef = collection(db, 'class_sessions');
+              await updateDoc(doc(sessionRef, sessionId), {
+                start_time: Timestamp.now(),
+                status: 'active',
+              });
+            }
             // Navigate to live attendance view
-            router.navigate(`/lecturer/live-attendance/${sessionId}`);
+            router.push({ pathname: '/lecturer/live-attendance/[sessionId]', params: { sessionId: String(sessionId) } });
           },
         },
       ]
     );
   };
 
-  const handleSaveQR = () => {
-    // In real app, implement QR code saving functionality
-    Alert.alert('Success', 'QR Code saved to gallery');
+  const handleSaveQR = async () => {
+    if (!qrRef.current) return;
+    setSaving(true);
+    try {
+      // Request media library permissions
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Cannot save image without gallery permission.');
+        setSaving(false);
+        return;
+      }
+      (qrRef.current as any).toDataURL(async (data: string) => {
+        try {
+          const fileUri = FileSystem.cacheDirectory + `qr_${sessionId}.png`;
+          await FileSystem.writeAsStringAsync(fileUri, data, { encoding: FileSystem.EncodingType.Base64 });
+          const asset = await MediaLibrary.createAssetAsync(fileUri);
+          await MediaLibrary.createAlbumAsync('UniTrace QRCodes', asset, false);
+          Alert.alert('Success', 'QR Code saved to gallery!');
+        } catch (err) {
+          Alert.alert('Error', 'Failed to save QR code.');
+        } finally {
+          setSaving(false);
+        }
+      });
+    } catch (error) {
+      setSaving(false);
+      Alert.alert('Error', 'Failed to save QR code.');
+    }
+  };
+
+  // Share QR code as image
+  const handleShareQR = async () => {
+    if (!qrRef.current) return;
+    setSharing(true);
+    try {
+      (qrRef.current as any).toDataURL(async (data: string) => {
+        const fileUri = FileSystem.cacheDirectory + `qr_${sessionId}.png`;
+        await FileSystem.writeAsStringAsync(fileUri, data, { encoding: FileSystem.EncodingType.Base64 });
+        await Sharing.shareAsync(fileUri, { mimeType: 'image/png', dialogTitle: 'Share QR Code' });
+        setSharing(false);
+      });
+    } catch (error) {
+      setSharing(false);
+      Alert.alert('Error', 'Failed to share QR code.');
+    }
   };
 
   const renderLocationModal = () => (
@@ -257,9 +310,15 @@ const GenerateQRPage = () => {
           <Text style={styles.modalTitle}>Select Location</Text>
           <View style={{ width: 24 }} />
         </View>
-        
         <ScrollView style={styles.modalContent}>
-          {locations.map((location) => (
+          {locationsLoading ? (
+            <ActivityIndicator size="large" color="#3b82f6" style={{ marginTop: 40 }} />
+          ) : locations.length === 0 ? (
+            <View style={{ alignItems: 'center', marginTop: 40 }}>
+              <Ionicons name="location-outline" size={40} color="#9ca3af" />
+              <Text style={{ color: '#9ca3af', marginTop: 10 }}>No locations found.</Text>
+            </View>
+          ) : locations.map((location: LocationType) => (
             <TouchableOpacity
               key={location.id}
               style={[
@@ -270,10 +329,14 @@ const GenerateQRPage = () => {
             >
               <View style={styles.locationInfo}>
                 <Text style={styles.locationName}>{location.name}</Text>
-                <Text style={styles.locationBuilding}>{location.building}</Text>
                 <Text style={styles.locationCapacity}>
-                  Capacity: {location.capacity} students
+                  {location.coordinates?.length || 0} corners
                 </Text>
+                {location.createdAt && (
+                  <Text style={styles.locationCreatedAt}>
+                    Added: {new Date(location.createdAt.seconds * 1000).toLocaleDateString()}
+                  </Text>
+                )}
               </View>
               {formData.selectedLocation?.id === location.id && (
                 <Ionicons name="checkmark-circle" size={24} color="#10b981" />
@@ -351,7 +414,7 @@ const GenerateQRPage = () => {
                 {formData.selectedLocation.name}
               </Text>
               <Text style={styles.selectedLocationSubtext}>
-                {formData.selectedLocation.building}
+                {formData.selectedLocation.coordinates?.length || 0} corners
               </Text>
             </View>
           ) : (
@@ -380,21 +443,13 @@ const GenerateQRPage = () => {
   const renderQRCode = () => (
     <View style={styles.qrContainer}>
       <Text style={styles.sectionTitle}>Session QR Code</Text>
-      
       <View style={styles.qrCodeWrapper}>
         <QRCode
-          value={JSON.stringify({
-            sessionId,
-            subject: formData.subject,
-            classCode: formData.classCode,
-            location: formData.selectedLocation,
-            timestamp: Date.now(),
-          })}
+          value={sessionId}
           size={200}
           ref={qrRef}
         />
       </View>
-      
       <View style={styles.sessionInfo}>
         <Text style={styles.sessionId}>Session ID: {sessionId}</Text>
         <Text style={styles.sessionDetails}>
@@ -404,24 +459,49 @@ const GenerateQRPage = () => {
           📍 {formData.selectedLocation?.name}
         </Text>
       </View>
-      
       <View style={styles.qrActions}>
         <TouchableOpacity
-          style={[styles.actionButton, styles.secondaryButton]}
+          style={[styles.actionButton, styles.secondaryButton, saving && { opacity: 0.6 }]}
           onPress={handleSaveQR}
+          disabled={saving}
         >
-          <Ionicons name="download" size={20} color="#3b82f6" />
+          {saving ? (
+            <ActivityIndicator size="small" color="#3b82f6" />
+          ) : (
+            <Ionicons name="download" size={20} color="#3b82f6" />
+          )}
           <Text style={styles.secondaryButtonText}>Save QR</Text>
         </TouchableOpacity>
-        
+        <TouchableOpacity
+          style={[styles.actionButton, styles.secondaryButton]}
+          onPress={handleShareQR}
+          disabled={sharing}
+        >
+          {sharing ? (
+            <ActivityIndicator size="small" color="#3b82f6" />
+          ) : (
+            <Ionicons name="share-social" size={20} color="#3b82f6" />
+          )}
+          <Text style={styles.secondaryButtonText}>Share QR</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, styles.primaryButton]}
           onPress={handleStartSession}
+          disabled={saving || sharing}
         >
           <Ionicons name="play" size={20} color="#ffffff" />
           <Text style={styles.primaryButtonText}>Start Session</Text>
         </TouchableOpacity>
       </View>
+      {/* Back to Dashboard Button */}
+      <TouchableOpacity
+        style={[styles.actionButton, { marginTop: 20, backgroundColor: '#3b82f6' }, (saving || sharing) && { opacity: 0.6 }]}
+        onPress={() => router.replace('/lecturer')}
+        disabled={saving || sharing}
+      >
+        <Ionicons name="arrow-back" size={20} color="#fff" />
+        <Text style={[styles.primaryButtonText, { color: '#fff' }]}>Back to Dashboard</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -703,14 +783,14 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     marginBottom: 4,
   },
-  locationBuilding: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 2,
-  },
   locationCapacity: {
     fontSize: 12,
     color: '#9ca3af',
+  },
+  locationCreatedAt: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
   },
   bottomPadding: {
     height: 20,

@@ -18,6 +18,7 @@ import WeeklyOverview from '@/components/WeeklyOverview';
 import { getClassStatusColor, getClassStatusIcon } from '@/utils/utils';
 import { AuthContext } from '@/context/AuthContext';
 import LecturerQuickActions from '@/components/LecturerQuickActions';
+import LecturerOngoingClass from '@/components/LecturerOngoingClass';
 
 const { width } = Dimensions.get('window');
 
@@ -218,129 +219,129 @@ const LecturerDashboard = () => {
   //   </View>
   // );
 
-  const renderTodaysClasses = () => (
-    <View style={styles.classesContainer}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Today&apos;s Classes</Text>
-        <Text style={styles.classCount}>{todaysClasses.length} classes</Text>
-      </View>
+  // const renderTodaysClasses = () => (
+  //   <View style={styles.classesContainer}>
+  //     <View style={styles.sectionHeader}>
+  //       <Text style={styles.sectionTitle}>Today&apos;s Classes</Text>
+  //       <Text style={styles.classCount}>{todaysClasses.length} classes</Text>
+  //     </View>
       
-      {todaysClasses.map((classItem) => (
-        <View key={classItem.id} style={styles.classCard}>
-          <View style={styles.classHeader}>
-            <View style={styles.classInfo}>
-              <Text style={styles.classSubject}>{classItem.subject}</Text>
-              <Text style={styles.classCode}>{classItem.code}</Text>
-            </View>
-            <View style={[styles.statusBadge, { backgroundColor: `${getClassStatusColor(classItem.status)}20` }]}>
-              <Ionicons 
-                name={getClassStatusIcon(classItem.status)} 
-                size={16} 
-                color={getClassStatusColor(classItem.status)} 
-              />
-              <Text style={[styles.statusText, { color: getClassStatusColor(classItem.status) }]}>
-                {classItem.status}
-              </Text>
-            </View>
-          </View>
+  //     {todaysClasses.map((classItem) => (
+  //       <View key={classItem.id} style={styles.classCard}>
+  //         <View style={styles.classHeader}>
+  //           <View style={styles.classInfo}>
+  //             <Text style={styles.classSubject}>{classItem.subject}</Text>
+  //             <Text style={styles.classCode}>{classItem.code}</Text>
+  //           </View>
+  //           <View style={[styles.statusBadge, { backgroundColor: `${getClassStatusColor(classItem.status)}20` }]}>
+  //             <Ionicons 
+  //               name={getClassStatusIcon(classItem.status)} 
+  //               size={16} 
+  //               color={getClassStatusColor(classItem.status)} 
+  //             />
+  //             <Text style={[styles.statusText, { color: getClassStatusColor(classItem.status) }]}>
+  //               {classItem.status}
+  //             </Text>
+  //           </View>
+  //         </View>
           
-          <View style={styles.classDetails}>
-            <View style={styles.classDetailItem}>
-              <Ionicons name="time" size={16} color="#6b7280" />
-              <Text style={styles.classDetailText}>{classItem.time}</Text>
-            </View>
-            <View style={styles.classDetailItem}>
-              <Ionicons name="location" size={16} color="#6b7280" />
-              <Text style={styles.classDetailText}>{classItem.location}</Text>
-            </View>
-          </View>
+  //         <View style={styles.classDetails}>
+  //           <View style={styles.classDetailItem}>
+  //             <Ionicons name="time" size={16} color="#6b7280" />
+  //             <Text style={styles.classDetailText}>{classItem.time}</Text>
+  //           </View>
+  //           <View style={styles.classDetailItem}>
+  //             <Ionicons name="location" size={16} color="#6b7280" />
+  //             <Text style={styles.classDetailText}>{classItem.location}</Text>
+  //           </View>
+  //         </View>
           
-          <View style={styles.attendanceInfo}>
-            <Text style={styles.attendanceText}>
-              {classItem.studentsPresent}/{classItem.studentsEnrolled} students present
-            </Text>
-            {classItem.studentsPresent > 0 && (
-              <Text style={styles.attendancePercentage}>
-                ({Math.round((classItem.studentsPresent / classItem.studentsEnrolled) * 100)}%)
-              </Text>
-            )}
-          </View>
+  //         <View style={styles.attendanceInfo}>
+  //           <Text style={styles.attendanceText}>
+  //             {classItem.studentsPresent}/{classItem.studentsEnrolled} students present
+  //           </Text>
+  //           {classItem.studentsPresent > 0 && (
+  //             <Text style={styles.attendancePercentage}>
+  //               ({Math.round((classItem.studentsPresent / classItem.studentsEnrolled) * 100)}%)
+  //             </Text>
+  //           )}
+  //         </View>
           
-          <View style={styles.classActions}>
-            {classItem.status === 'upcoming' && (
-              <TouchableOpacity 
-                style={[styles.actionButton, styles.primaryButton]}
-                onPress={() => handleGenerateQR(classItem.id)}
-              >
-                <Ionicons name="qr-code" size={16} color="#ffffff" />
-                <Text style={styles.primaryButtonText}>Generate QR</Text>
-              </TouchableOpacity>
-            )}
+  //         <View style={styles.classActions}>
+  //           {classItem.status === 'upcoming' && (
+  //             <TouchableOpacity 
+  //               style={[styles.actionButton, styles.primaryButton]}
+  //               onPress={() => handleGenerateQR(classItem.id)}
+  //             >
+  //               <Ionicons name="qr-code" size={16} color="#ffffff" />
+  //               <Text style={styles.primaryButtonText}>Generate QR</Text>
+  //             </TouchableOpacity>
+  //           )}
             
-            {classItem.status === 'completed' && (
-              <TouchableOpacity 
-                style={[styles.actionButton, styles.secondaryButton]}
-                onPress={() => handleViewAttendance(classItem.id)}
-              >
-                <Ionicons name="eye" size={16} color="#3b82f6" />
-                <Text style={styles.secondaryButtonText}>View Attendance</Text>
-              </TouchableOpacity>
-            )}
+  //           {classItem.status === 'completed' && (
+  //             <TouchableOpacity 
+  //               style={[styles.actionButton, styles.secondaryButton]}
+  //               onPress={() => handleViewAttendance(classItem.id)}
+  //             >
+  //               <Ionicons name="eye" size={16} color="#3b82f6" />
+  //               <Text style={styles.secondaryButtonText}>View Attendance</Text>
+  //             </TouchableOpacity>
+  //           )}
             
-            {classItem.status === 'ongoing' && (
-              <TouchableOpacity 
-                style={[styles.actionButton, styles.primaryButton]}
-                onPress={() => router.navigate(`/lecturer/live-attendance/${classItem.id}`)}
-              >
-                <Ionicons name="radio" size={16} color="#ffffff" />
-                <Text style={styles.primaryButtonText}>Live View</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      ))}
-    </View>
-  );
+  //           {classItem.status === 'ongoing' && (
+  //             <TouchableOpacity 
+  //               style={[styles.actionButton, styles.primaryButton]}
+  //               onPress={() => router.navigate(`/lecturer/live-attendance/${classItem.id}`)}
+  //             >
+  //               <Ionicons name="radio" size={16} color="#ffffff" />
+  //               <Text style={styles.primaryButtonText}>Live View</Text>
+  //             </TouchableOpacity>
+  //           )}
+  //         </View>
+  //       </View>
+  //     ))}
+  //   </View>
+  // );
 
-  const renderAttendanceAlerts = () => (
-    <View style={styles.alertsContainer}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Attendance Alerts</Text>
-        <TouchableOpacity onPress={() => router.navigate('/lecturer/alerts')}>
-          <Text style={styles.viewAllText}>View All</Text>
-        </TouchableOpacity>
-      </View>
+  // const renderAttendanceAlerts = () => (
+  //   <View style={styles.alertsContainer}>
+  //     <View style={styles.sectionHeader}>
+  //       <Text style={styles.sectionTitle}>Attendance Alerts</Text>
+  //       <TouchableOpacity onPress={() => router.navigate('/lecturer/alerts')}>
+  //         <Text style={styles.viewAllText}>View All</Text>
+  //       </TouchableOpacity>
+  //     </View>
       
-      {attendanceAlerts.length > 0 ? (
-        attendanceAlerts.map((alert) => (
-          <View key={alert.id} style={styles.alertItem}>
-            <View style={styles.alertIcon}>
-              <Ionicons 
-                name={alert.type === 'low_attendance' ? 'warning' : 'alert-circle'} 
-                size={20} 
-                color="#ef4444" 
-              />
-            </View>
-            <View style={styles.alertContent}>
-              <Text style={styles.alertTitle}>
-                {alert.studentName} ({alert.studentId})
-              </Text>
-              <Text style={styles.alertMessage}>{alert.message}</Text>
-              <Text style={styles.alertSubject}>{alert.subject}</Text>
-            </View>
-            <TouchableOpacity style={styles.alertAction}>
-              <Ionicons name="chevron-forward" size={16} color="#6b7280" />
-            </TouchableOpacity>
-          </View>
-        ))
-      ) : (
-        <View style={styles.noAlertsContainer}>
-          <Ionicons name="checkmark-circle" size={40} color="#10b981" />
-          <Text style={styles.noAlertsText}>No attendance alerts</Text>
-        </View>
-      )}
-    </View>
-  );
+  //     {attendanceAlerts.length > 0 ? (
+  //       attendanceAlerts.map((alert) => (
+  //         <View key={alert.id} style={styles.alertItem}>
+  //           <View style={styles.alertIcon}>
+  //             <Ionicons 
+  //               name={alert.type === 'low_attendance' ? 'warning' : 'alert-circle'} 
+  //               size={20} 
+  //               color="#ef4444" 
+  //             />
+  //           </View>
+  //           <View style={styles.alertContent}>
+  //             <Text style={styles.alertTitle}>
+  //               {alert.studentName} ({alert.studentId})
+  //             </Text>
+  //             <Text style={styles.alertMessage}>{alert.message}</Text>
+  //             <Text style={styles.alertSubject}>{alert.subject}</Text>
+  //           </View>
+  //           <TouchableOpacity style={styles.alertAction}>
+  //             <Ionicons name="chevron-forward" size={16} color="#6b7280" />
+  //           </TouchableOpacity>
+  //         </View>
+  //       ))
+  //     ) : (
+  //       <View style={styles.noAlertsContainer}>
+  //         <Ionicons name="checkmark-circle" size={40} color="#10b981" />
+  //         <Text style={styles.noAlertsText}>No attendance alerts</Text>
+  //       </View>
+  //     )}
+  //   </View>
+  // );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -385,17 +386,18 @@ const LecturerDashboard = () => {
       >
         {/* Weekly Overview */}
         {/* {renderWeeklyOverview()} */}
-        <WeeklyOverview styles={styles} weeklyStats={weeklyStats}/>
+        {/* <WeeklyOverview styles={styles} weeklyStats={weeklyStats}/> */}
 
         {/* Quick Actions */}
         {/* {renderQuickActions()} */}
         <LecturerQuickActions styles={styles} />
 
         {/* Today's Classes */}
-        {renderTodaysClasses()}
+        {/* {renderTodaysClasses()} */}
+        <LecturerOngoingClass styles={styles}/>
 
         {/* Attendance Alerts */}
-        {renderAttendanceAlerts()}
+        {/* {renderAttendanceAlerts()} */}
 
         <View style={styles.bottomPadding} />
       </ScrollView>
