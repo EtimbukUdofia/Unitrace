@@ -119,7 +119,7 @@ const AuthScreen = () => {
               <View style={styles.logoContainer}>
                 <Ionicons name="school-outline" size={50} color="#ffffff" />
               </View>
-              <Text style={styles.appTitle}>AttendanceTracker</Text>
+              <Text style={styles.appTitle}>UniTrace</Text>
               <Text style={styles.appSubtitle}>
                 {isLogin ? 'Welcome back!' : 'Join us today!'}
               </Text>
