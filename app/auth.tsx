@@ -10,10 +10,12 @@ import {
   Platform,
   ScrollView,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { getFirestore, doc, setDoc, Timestamp } from 'firebase/firestore';
+import * as Location from 'expo-location';
 
 const AuthScreen = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -60,6 +62,27 @@ const AuthScreen = () => {
         const user = userCredential.user;
         // Optionally update display name
         await updateProfile(user, { displayName: formData.fullName });
+        
+        // For students, request location permission and capture initial location
+        let initialLocationData = null;
+        if (userType === 'student') {
+          try {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status === 'granted') {
+              const location = await Location.getCurrentPositionAsync({
+                accuracy: Location.LocationAccuracy.High,
+              });
+              initialLocationData = {
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+                timestamp: new Date(),
+              };
+            }
+          } catch (locationError) {
+            console.log('Location permission not granted during registration:', locationError);
+          }
+        }
+        
         // Save user data to Firestore
         await setDoc(doc(firestore, userType , user.uid), {
           email: formData.email,
@@ -71,6 +94,8 @@ const AuthScreen = () => {
           department: formData.department,
           // createdAt: new Date().toISOString(),
           createdAt: Timestamp.now(),
+          // Include initial location for students
+          ...(userType === 'student' && initialLocationData && { lastKnownLocation: initialLocationData }),
         });
         // Force reload of user data after registration to ensure AuthContext picks up the new Firestore document
         await auth.currentUser?.reload();

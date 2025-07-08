@@ -47,7 +47,7 @@ function isPointInPolygon(point: { latitude: number, longitude: number }, polygo
 
 const QRScannerScreen = () => {
   const { setCurrentLectureData, ongoingLecture } = useContext(AttendanceContext);
-  const {user} = useContext(AuthContext);
+  const {user, initialLocation} = useContext(AuthContext);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   // const [locationStatus, locationPermission] = Location.useForegroundPermissions();
   const [hasForegroundLocationPermission, setHasForegroundLocationPermission] = useState<boolean | null>(null);
@@ -207,11 +207,18 @@ const QRScannerScreen = () => {
       console.log('Current Foreground Location:', locationResult.coords);
     } catch (error) {
       console.error('Error getting current location:', error);
-      Alert.alert(
-        'Location Error',
-        'Could not get your current location. Please ensure location services are enabled and permissions are granted.',
-        [{ text: 'OK', onPress: () => router.back() }] // Go back if location is critical
-      );
+      
+      // If we have initial location, we can still proceed
+      if (initialLocation) {
+        console.log('Using initial location as fallback for QR scanning');
+        // Don't show error alert, just log the issue
+      } else {
+        Alert.alert(
+          'Location Error',
+          'Could not get your current location. Please ensure location services are enabled and permissions are granted.',
+          [{ text: 'OK', onPress: () => router.back() }] // Go back if location is critical
+        );
+      }
       setCurrentLocation(undefined);
     } finally {
       setLoading(false);
@@ -292,8 +299,11 @@ const QRScannerScreen = () => {
     setLoading(true);
 
     try {
-      if (!currentLocation) {
-        throw new Error('Current location not available. Please ensure location services are enabled and permissions are granted.');
+      // Use current location if available, otherwise fall back to initial location
+      const locationToUse = currentLocation || initialLocation;
+      
+      if (!locationToUse) {
+        throw new Error('Location not available. Please ensure location services are enabled and permissions are granted.');
       }
 
       // 1. Fetch class session details
@@ -322,8 +332,8 @@ const QRScannerScreen = () => {
 
       // 3. Perform Foreground Geofence Check
       const currentPoint = {
-        latitude: currentLocation.coords.latitude,
-        longitude: currentLocation.coords.longitude,
+        latitude: locationToUse.coords.latitude,
+        longitude: locationToUse.coords.longitude,
       };
 
       const isInGeofence = isPointInPolygon({latitude: 7.6240666, longitude: 4.206619}, polygon);
@@ -349,6 +359,7 @@ const QRScannerScreen = () => {
           latitude: currentPoint.latitude,
           longitude: currentPoint.longitude,
           isInGeofence: true,
+          locationSource: currentLocation ? 'current' : 'initial', // Track which location was used
         },
         // You can add more fields related to the class/user here
         // Store location data and times for background task reference
@@ -473,6 +484,17 @@ const QRScannerScreen = () => {
     }
   };
 
+  const refreshLocation = async () => {
+    try {
+      setLoading(true);
+      await getCurrentUserLocation();
+    } catch (error) {
+      console.error('Error refreshing location:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleManualEntry = () => {
     Alert.alert(
       'Manual Entry',
@@ -534,13 +556,29 @@ const QRScannerScreen = () => {
           <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Scan QR Code</Text>
-        <TouchableOpacity style={styles.flashButton} onPress={toggleFlash}>
-          <Ionicons
-            name={flashOn ? "flash" : "flash-off"}
-            size={24}
-            color="#ffffff"
-          />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {/* Location Status Indicator */}
+          <TouchableOpacity style={styles.locationStatus} onPress={refreshLocation}>
+            <Ionicons 
+              name="location" 
+              size={16} 
+              color={currentLocation ? "#10b981" : initialLocation ? "#f59e0b" : "#ef4444"} 
+            />
+            <Text style={[
+              styles.locationStatusText,
+              { color: currentLocation ? "#10b981" : initialLocation ? "#f59e0b" : "#ef4444" }
+            ]}>
+              {currentLocation ? "Live" : initialLocation ? "Saved" : "None"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.flashButton} onPress={toggleFlash}>
+            <Ionicons
+              name={flashOn ? "flash" : "flash-off"}
+              size={24}
+              color="#ffffff"
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Camera View */}
@@ -615,7 +653,11 @@ const QRScannerScreen = () => {
           <Text style={styles.instructionText}>
             {loading
               ? 'Please wait while we mark your attendance'
-              : 'Hold steady and ensure good lighting'
+              : currentLocation 
+                ? 'Location ready - Hold steady and ensure good lighting'
+                : initialLocation 
+                  ? 'Using saved location - Hold steady and ensure good lighting'
+                  : 'Getting location... - Please wait'
             }
           </Text>
         </View>
@@ -700,6 +742,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#ffffff',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  locationStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  locationStatusText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
   },
   flashButton: {
     padding: 8,
