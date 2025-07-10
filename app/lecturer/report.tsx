@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -29,26 +30,21 @@ const { width } = Dimensions.get('window');
 
 const LecturerReports = () => {
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState('week'); // week, month, semester
-  const [selectedReportType, setSelectedReportType] = useState('overview'); // overview, attendance, performance
+  const [searchText, setSearchText] = useState('');
+  // const [selectedReportType, setSelectedReportType] = useState('overview'); // overview, attendance, performance
 
   const router = useRouter();
   const { user } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [courseStats, setCourseStats] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>({ totalSessions: 0, avgAttendance: 0, totalStudents: 0 });
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const periodOptions = [
-    { label: 'This Week', value: 'week' },
-    { label: 'This Month', value: 'month' },
-    { label: 'This Semester', value: 'semester' },
-  ];
-
-  const reportTypes = [
-    { label: 'Overview', value: 'overview', icon: 'stats-chart' },
-    { label: 'Attendance', value: 'attendance', icon: 'people' },
-    { label: 'Performance', value: 'performance', icon: 'trending-up' },
-  ];
+  // const reportTypes = [
+  //   { label: 'Overview', value: 'overview', icon: 'stats-chart' },
+  //   { label: 'Attendance', value: 'attendance', icon: 'people' },
+  //   { label: 'Performance', value: 'performance', icon: 'trending-up' },
+  // ];
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalCourse, setModalCourse] = useState<any>(null);
@@ -77,9 +73,8 @@ const LecturerReports = () => {
   };
 
   const generateReportContent = () => {
-    const { overview } = summary;
     return `
-ATTENDANCE REPORT - ${selectedPeriod.toUpperCase()}
+ATTENDANCE REPORT
 
 Summary:
 - Total Sessions: ${summary.totalSessions}
@@ -87,8 +82,8 @@ Summary:
 - Total Students: ${summary.totalStudents}
 
 Generated on: ${new Date().toLocaleDateString()}
-    `;
-  };
+  `;
+};
 
   const getAttendanceColor = (percentage: number) => {
     if (percentage >= 90) return '#10b981';
@@ -132,7 +127,7 @@ Generated on: ${new Date().toLocaleDateString()}
       let totalAttendanceCount = 0;
       for (const course of Object.values(courseMap)) {
         for (const session of course.sessions) {
-          const logsSnap = await getDocs(query(collection(db, 'attendance_logs'), where('sessionId', '==', doc(db, 'class_sessions', session.id))));
+          const logsSnap = await getDocs(query(collection(db, 'attendance_logs'), where('sessionId', '==', session.id)));
           const logs = logsSnap.docs.map(d => d.data());
           course.attendanceLogs.push(...logs);
           // Attendance stats
@@ -171,57 +166,10 @@ Generated on: ${new Date().toLocaleDateString()}
       });
       setLoading(false);
     })();
-  }, [user?.uid]);
+  }, [user?.uid, reloadKey]);
 
-  const renderPeriodSelector = () => (
-    <View style={styles.periodSelector}>
-      {periodOptions.map((period) => (
-        <TouchableOpacity
-          key={period.value}
-          style={[
-            styles.periodButton,
-            selectedPeriod === period.value && styles.selectedPeriodButton
-          ]}
-          onPress={() => setSelectedPeriod(period.value)}
-        >
-          <Text style={[
-            styles.periodButtonText,
-            selectedPeriod === period.value && styles.selectedPeriodButtonText
-          ]}>
-            {period.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-
-  const renderReportTypeSelector = () => (
-    <View style={styles.reportTypeSelector}>
-      {reportTypes.map((type) => (
-        <TouchableOpacity
-          key={type.value}
-          style={[
-            styles.reportTypeButton,
-            selectedReportType === type.value && styles.selectedReportTypeButton
-          ]}
-          onPress={() => setSelectedReportType(type.value)}
-        >
-          <Ionicons
-            name={type.icon as any}
-            size={16}
-            color={selectedReportType === type.value ? '#ffffff' : '#6b7280'}
-          />
-          <Text style={[
-            styles.reportTypeButtonText,
-            selectedReportType === type.value && styles.selectedReportTypeButtonText
-          ]}>
-            {type.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-
+  // Remove reportTypes, selectedReportType, and renderReportTypeSelector.
+  // Add the search bar just below the header in the return statement:
   const renderOverviewStats = () => (
     <View style={styles.overviewContainer}>
       <Text style={styles.sectionTitle}>Overview Statistics</Text>
@@ -275,6 +223,11 @@ Generated on: ${new Date().toLocaleDateString()}
       );
     }
 
+    const filteredCourseStats = courseStats.filter(course =>
+      course.subject?.toLowerCase().includes(searchText.toLowerCase()) ||
+      course.classCode?.toLowerCase().includes(searchText.toLowerCase())
+    );
+
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
         <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
@@ -296,7 +249,7 @@ Generated on: ${new Date().toLocaleDateString()}
             </View>
           </View>
           <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937', marginBottom: 12 }}>Per Course</Text>
-          {courseStats.map((course, idx) => (
+          {filteredCourseStats.map((course, idx) => (
             <TouchableOpacity key={course.classCode} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 1 }} onPress={() => openCourseModal(course)}>
               <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#3b82f6', marginBottom: 4 }}>{course.subject} ({course.classCode})</Text>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -323,13 +276,18 @@ Generated on: ${new Date().toLocaleDateString()}
     setModalCourse(course);
     setModalVisible(true);
     setModalStudentStats([]);
-    // Do not reset modalDate here; keep current filter
+    // Set default date to today if not already set
+    setModalDate(new Date());
   };
 
   // Fetch modal student stats whenever modalCourse or modalDate changes
   useEffect(() => {
     const fetchModalStats = async () => {
-      if (!modalCourse || !user?.uid) return;
+      if (!modalCourse || !user?.uid || !modalDate) { // Require date
+        setModalStudentStats([]);
+        setModalLoading(false);
+        return;
+      }
       setModalLoading(true);
       setModalStudentStats([]);
       // Fetch all sessions for this course
@@ -340,49 +298,35 @@ Generated on: ${new Date().toLocaleDateString()}
         setModalLoading(false);
         return;
       }
-      // If filtering by date, filter sessions by start_time
-      let filteredSessions = sessions;
-      if (modalDate) {
-        const dayStart = new Date(modalDate);
-        dayStart.setHours(0,0,0,0);
-        const dayEnd = new Date(modalDate);
-        dayEnd.setHours(23,59,59,999);
-        filteredSessions = sessions.filter(sRaw => {
-          const s = sRaw as any;
-          return s.start_time && s.start_time.seconds * 1000 >= dayStart.getTime() && s.start_time.seconds * 1000 <= dayEnd.getTime();
-        });
-      }
+      // Filter sessions by start_time (date required)
+      const dayStart = new Date(modalDate);
+      dayStart.setHours(0,0,0,0);
+      const dayEnd = new Date(modalDate);
+      dayEnd.setHours(23,59,59,999);
+      const filteredSessions = sessions.filter(sRaw => {
+        const s = sRaw as any;
+        return s.start_time && s.start_time.seconds * 1000 >= dayStart.getTime() && s.start_time.seconds * 1000 <= dayEnd.getTime();
+      });
       // Fetch all logs for these sessions
       let allLogs: any[] = [];
       for (const session of filteredSessions) {
-        const logsSnap = await getDocs(query(collection(db, 'attendance_logs'), where('sessionId', '==', doc(db, 'class_sessions', session.id))));
+        const logsSnap = await getDocs(query(collection(db, 'attendance_logs'), where('sessionId', '==', session.id)));
         allLogs.push(...logsSnap.docs.map(d => d.data()));
       }
-      // Aggregate stats per student
-      const studentMap: Record<string, any> = {};
-      for (const log of allLogs) {
-        const key = log.matricNo || log.userId?.id || log.userId || 'unknown';
-        if (!studentMap[key]) {
-          studentMap[key] = {
-            matricNo: log.matricNo || '',
-            name: log.studentName || '',
-            presents: 0,
-            absents: 0,
-          };
-        }
-        if (log.present !== false) studentMap[key].presents++;
-        else studentMap[key].absents++;
-      }
-      const statsArr = Object.values(studentMap).map((s: any) => ({
-        ...s,
-        total: s.presents + s.absents,
-        percentage: s.total > 0 ? Math.round((s.presents / s.total) * 100) : 0,
+      // Map each log to a row with matricNo, name, and time
+      const statsArr = allLogs.map((log: any) => ({
+        matricNo: log.matricNo || '',
+        name: log.studentName || '',
+        time: log.timestamp ? (log.timestamp.seconds ? new Date(log.timestamp.seconds * 1000) : new Date(log.timestamp)) : null,
       }));
       setModalStudentStats(statsArr);
       setModalLoading(false);
     };
-    if (modalVisible && modalCourse) {
+    if (modalVisible && modalCourse && modalDate) {
       fetchModalStats();
+    } else {
+      setModalStudentStats([]);
+      setModalLoading(false);
     }
   }, [modalCourse, modalDate, modalVisible, user?.uid]);
 
@@ -397,8 +341,8 @@ Generated on: ${new Date().toLocaleDateString()}
   // Download CSV for modal data
   const handleDownloadCSV = async () => {
     if (!modalStudentStats.length) return;
-    const header = 'Matric No,Name,Presents,Absents,Total,Percentage\n';
-    const rows = modalStudentStats.map(s => `${s.matricNo},${s.name},${s.presents},${s.absents},${s.total},${s.percentage}%`).join('\n');
+    const header = 'S/N,Matric No,Name,Time\n';
+    const rows = modalStudentStats.map((s, i) => `${i + 1},${s.matricNo},${s.name},${s.time ? (typeof s.time === 'string' ? s.time : s.time.toLocaleString()) : ''}`).join('\n');
     const csv = header + rows;
     const fileUri = FileSystem.cacheDirectory + `attendance_${modalCourse.classCode}_${modalDate ? modalDate.toISOString().slice(0,10) : 'all'}.csv`;
     await FileSystem.writeAsStringAsync(fileUri, csv, { encoding: FileSystem.EncodingType.UTF8 });
@@ -415,16 +359,17 @@ Generated on: ${new Date().toLocaleDateString()}
           <Ionicons name="arrow-back" size={24} color="#1f2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Reports & Analytics</Text>
-        <TouchableOpacity onPress={exportReport}>
-          <Ionicons name="download" size={24} color="#1f2937" />
+        <TouchableOpacity onPress={() => setReloadKey(k => k + 1)} disabled={loading}>
+          {loading ? (
+            <ActivityIndicator size="small" color="#3b82f6" />
+          ) : (
+            <Ionicons name="reload" size={24} color="#1f2937" />
+          )}
         </TouchableOpacity>
       </View>
 
-      {/* Period Selector */}
-      {renderPeriodSelector()}
-
       {/* Report Type Selector */}
-      {renderReportTypeSelector()}
+      {/* renderReportTypeSelector() */}
 
       <ScrollView
         style={styles.scrollView}
@@ -433,6 +378,20 @@ Generated on: ${new Date().toLocaleDateString()}
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
+        {/* Add the search bar */}
+        <View style={{ paddingHorizontal: 20, paddingVertical: 15, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#f3f4f6', borderRadius: 12, paddingHorizontal: 12 }}>
+            <Ionicons name="search" size={20} color="#6b7280" />
+            <TextInput
+              style={{ flex: 1, fontSize: 16, marginLeft: 8, color: '#1f2937', height: 40 }}
+              placeholder="Search course by subject or code..."
+              placeholderTextColor="#9ca3af"
+              value={searchText}
+              onChangeText={setSearchText}
+              returnKeyType="search"
+            />
+          </View>
+        </View>
         {renderContent()}
 
         <View style={styles.bottomPadding} />
@@ -446,8 +405,8 @@ Generated on: ${new Date().toLocaleDateString()}
               <Ionicons name="close" size={28} color="#1f2937" />
             </TouchableOpacity>
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>{modalCourse?.subject} ({modalCourse?.classCode})</Text>
-            <TouchableOpacity onPress={handleDownloadCSV} disabled={modalLoading || !modalStudentStats.length}>
-              <Ionicons name="download" size={24} color={modalLoading || !modalStudentStats.length ? '#d1d5db' : '#3b82f6'} />
+            <TouchableOpacity onPress={handleDownloadCSV} disabled={modalLoading || !modalStudentStats.length || !modalDate}>
+              <Ionicons name="download" size={24} color={modalLoading || !modalStudentStats.length || !modalDate ? '#d1d5db' : '#3b82f6'} />
             </TouchableOpacity>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#f3f4f6' }}>
@@ -455,7 +414,7 @@ Generated on: ${new Date().toLocaleDateString()}
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TouchableOpacity onPress={() => setShowDatePicker(true)} style={{ backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: '#e5e7eb', flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
                 <Ionicons name="calendar" size={18} color="#3b82f6" />
-                <Text style={{ marginLeft: 8, color: '#3b82f6', fontWeight: '500' }}>{modalDate ? modalDate.toLocaleDateString() : 'All Time'}</Text>
+                <Text style={{ marginLeft: 8, color: '#3b82f6', fontWeight: '500' }}>{modalDate ? modalDate.toLocaleDateString() : 'Select Date'}</Text>
               </TouchableOpacity>
               {modalDate && (
                 <TouchableOpacity onPress={() => setModalDate(null)} style={{ backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: '#e5e7eb' }}>
@@ -478,12 +437,17 @@ Generated on: ${new Date().toLocaleDateString()}
             <Button
               title="Download CSV"
               onPress={handleDownloadCSV}
-              disabled={modalLoading || !modalStudentStats.length}
+              disabled={modalLoading || !modalStudentStats.length || !modalDate}
               type="primary"
               style={{ marginTop: 8, marginBottom: 8 }}
             />
           </View>
-          {modalLoading ? (
+          {!modalDate ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="calendar-outline" size={48} color="#9ca3af" style={{ marginBottom: 16 }} />
+              <Text style={{ color: '#6b7280', fontSize: 16 }}>Please select a date to view attendance logs.</Text>
+            </View>
+          ) : modalLoading ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <ActivityIndicator size="large" color="#3b82f6" />
               <Text style={{ color: '#6b7280', marginTop: 16, fontSize: 16 }}>Loading students...</Text>
@@ -491,7 +455,7 @@ Generated on: ${new Date().toLocaleDateString()}
           ) : modalStudentStats.length === 0 ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="people-outline" size={48} color="#9ca3af" style={{ marginBottom: 16 }} />
-              <Text style={{ color: '#6b7280', fontSize: 16 }}>No attendance data for this course{modalDate ? ' on this date' : ''}.</Text>
+              <Text style={{ color: '#6b7280', fontSize: 16 }}>No attendance data for this course on this date.</Text>
             </View>
           ) : (
             <FlatList
@@ -500,20 +464,18 @@ Generated on: ${new Date().toLocaleDateString()}
               contentContainerStyle={{ padding: 16 }}
               ListHeaderComponent={
                 <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', paddingBottom: 8, marginBottom: 8 }}>
+                  <Text style={{ flex: 1, fontWeight: 'bold', color: '#1f2937' }}>#</Text>
                   <Text style={{ flex: 2, fontWeight: 'bold', color: '#1f2937' }}>Matric No</Text>
                   <Text style={{ flex: 3, fontWeight: 'bold', color: '#1f2937' }}>Name</Text>
-                  <Text style={{ flex: 1, fontWeight: 'bold', color: '#1f2937', textAlign: 'center' }}>Present</Text>
-                  <Text style={{ flex: 1, fontWeight: 'bold', color: '#1f2937', textAlign: 'center' }}>Absent</Text>
-                  <Text style={{ flex: 1, fontWeight: 'bold', color: '#1f2937', textAlign: 'center' }}>%</Text>
+                  <Text style={{ flex: 2, fontWeight: 'bold', color: '#1f2937' }}>Time</Text>
                 </View>
               }
-              renderItem={({ item }) => (
+              renderItem={({ item, index }) => (
                 <View style={{ flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
+                  <Text style={{ flex: 1, color: '#374151' }}>{index + 1}</Text>
                   <Text style={{ flex: 2, color: '#374151' }}>{item.matricNo}</Text>
                   <Text style={{ flex: 3, color: '#374151' }}>{item.name}</Text>
-                  <Text style={{ flex: 1, color: '#10b981', textAlign: 'center' }}>{item.presents}</Text>
-                  <Text style={{ flex: 1, color: '#ef4444', textAlign: 'center' }}>{item.absents}</Text>
-                  <Text style={{ flex: 1, color: '#3b82f6', textAlign: 'center' }}>{item.percentage}%</Text>
+                  <Text style={{ flex: 2, color: '#374151' }}>{item.time ? item.time.toLocaleString() : ''}</Text>
                 </View>
               )}
             />
