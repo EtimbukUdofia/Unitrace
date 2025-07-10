@@ -35,28 +35,6 @@ const LecturerDashboard = () => {
         })
   }
 
-  // Recent attendance alerts
-  const [attendanceAlerts] = useState([
-    {
-      id: 1,
-      type: 'low_attendance',
-      studentName: 'John Doe',
-      studentId: 'ST2021001',
-      subject: 'Data Structures',
-      attendanceRate: 45,
-      message: 'Below 50% attendance threshold',
-    },
-    {
-      id: 2,
-      type: 'absent_streak',
-      studentName: 'Jane Smith',
-      studentId: 'ST2021045',
-      subject: 'Database Systems',
-      streakDays: 5,
-      message: 'Absent for 5 consecutive classes',
-    },
-  ]);
-
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentDate(new Date());

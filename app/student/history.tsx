@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { AuthContext } from '@/context/AuthContext';
 import * as FileSystem from 'expo-file-system';
@@ -20,35 +20,53 @@ const StudentHistoryPage = () => {
   const router = useRouter();
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  // Move fetchLogs outside useEffect so it can be reused
+  const fetchLogs = async () => {
     if (!user?.uid) return;
     setLoading(true);
-    // Listen to attendance_logs for this student
+    // Fetch attendance_logs for this student (not real-time)
     const logsQuery = query(
       collection(db, 'attendance_logs'),
       where('userId', '==', user.uid)
     );
-    const unsubLogs = onSnapshot(logsQuery, async (snap) => {
-      const logs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Fetch session details for each log
-      const sessionPromises = logs.map(async (log) => {
-        const sessionDoc = await getDoc(log.sessionId);
-        return {
-          id: log.id,
-          subject: sessionDoc.exists() ? (sessionDoc.data().subject || sessionDoc.data().courseTitle) : '',
-          code: sessionDoc.exists() ? (sessionDoc.data().code || sessionDoc.data().classCode) : '',
-          location: sessionDoc.exists() ? (sessionDoc.data().location || sessionDoc.data().location_name) : '',
-          status: sessionDoc.exists() ? sessionDoc.data().status : '',
-          time: log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleString() : '',
-          present: log.present !== false,
-        };
-      });
-      const sessionData = await Promise.all(sessionPromises);
-      setSessions(sessionData);
-      setLoading(false);
+    const snap = await getDocs(logsQuery);
+    const logs = snap.docs.map(doc => ({
+      id: doc.id,
+      ...(doc.data() as any)
+    }));
+    // Fetch session details for each log
+    const sessionPromises = logs.map(async (log: any) => {
+      let subject = '', code = '', location = '', status = '';
+      let sessionDoc = null;
+      if (log.sessionId) {
+        sessionDoc = await getDoc(typeof log.sessionId === 'string' ? doc(db, 'class_sessions', log.sessionId) : log.sessionId);
+        if (sessionDoc && sessionDoc.exists()) {
+          const data = sessionDoc.data() as any;
+          subject = (data && (data.subject || data.courseTitle)) || '';
+          code = (data && (data.code || data.classCode)) || '';
+          location = (data && (data.location || data.location_name)) || '';
+          status = (data && data.status) || '';
+        }
+      }
+      return {
+        id: log.id || '',
+        subject,
+        code,
+        location,
+        status,
+        time: log.timestamp ? (log.timestamp.seconds ? new Date(log.timestamp.seconds * 1000).toLocaleString() : new Date(log.timestamp as any).toLocaleString()) : '',
+        present: log.present !== false,
+      };
     });
-    return () => unsubLogs();
+    const sessionData = await Promise.all(sessionPromises);
+    setSessions(sessionData);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchLogs();
   }, [user?.uid]);
 
   const total = sessions.length;
@@ -57,14 +75,14 @@ const StudentHistoryPage = () => {
   const percent = total ? Math.round((present / total) * 100) : 0;
 
   const handleExportCSV = async () => {
-    if (!sessions.length) {
+    if (!sessions.length || !user || !user.uid) {
       Alert.alert('No Data', 'No attendance data to export.');
       return;
     }
     const csv = generateCSV(sessions.map(s => ({
       Subject: s.subject,
       Code: s.code,
-      Location: s.location,
+      Location: typeof s.location === 'object' && s.location !== null ? (s.location.name || JSON.stringify(s.location)) : (s.location || ''),
       Status: s.status,
       Time: s.time,
       Attendance: s.present ? 'Present' : 'Absent',
@@ -72,6 +90,12 @@ const StudentHistoryPage = () => {
     const fileUri = FileSystem.cacheDirectory + `attendance_history_${user.uid}.csv`;
     await FileSystem.writeAsStringAsync(fileUri, csv, { encoding: FileSystem.EncodingType.UTF8 });
     await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export Attendance CSV' });
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchLogs();
+    setRefreshing(false);
   };
 
   if (loading) {
@@ -87,7 +111,7 @@ const StudentHistoryPage = () => {
         <Text style={styles.headerTitle}>Attendance History</Text>
         <View style={{ width: 24 }} />
       </View>
-      <View style={styles.analyticsBox}>
+      {/* <View style={styles.analyticsBox}>
         <Text style={styles.analyticsText}>Total: {total}</Text>
         <Text style={styles.analyticsText}>Present: {present}</Text>
         <Text style={styles.analyticsText}>Absent: {absent}</Text>
@@ -96,7 +120,7 @@ const StudentHistoryPage = () => {
           <Ionicons name="download" size={18} color="#fff" />
           <Text style={styles.exportButtonText}>Export CSV</Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
       <FlatList
         data={sessions}
         keyExtractor={item => item.id}
@@ -107,13 +131,16 @@ const StudentHistoryPage = () => {
             <Ionicons name={item.present ? 'checkmark-circle' : 'close-circle'} size={22} color={item.present ? '#10b981' : '#ef4444'} />
             <View style={{ marginLeft: 12 }}>
               <Text style={styles.sessionName}>{item.subject} ({item.code})</Text>
-              <Text style={styles.sessionLocation}>{item.location}</Text>
+              <Text style={styles.sessionLocation}>{typeof item.location === 'object' && item.location !== null ? (item.location.name || JSON.stringify(item.location)) : (item.location || '')}</Text>
             </View>
-            <Text style={[styles.statusText, { color: item.present ? '#10b981' : '#ef4444' }]}>{item.present ? 'Present' : 'Absent'}</Text>
+            {/* <Text style={[styles.statusText, { color: item.present ? '#10b981' : '#ef4444' }]}>{item.present ? 'Present' : 'Absent'}</Text> */}
             <Text style={styles.timeText}>{item.time}</Text>
           </View>
         )}
         ListEmptyComponent={<Text style={styles.emptyFeed}>No attendance records found.</Text>}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       />
     </SafeAreaView>
   );

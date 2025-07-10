@@ -19,12 +19,12 @@ export const QuickActions: React.FC<PropType> = ({styles, handleScanQR}) => {
           <Text style={styles.quickActionText}>Scan QR</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.quickActionItem}>
+        {/* <TouchableOpacity style={styles.quickActionItem}>
           <View style={[styles.quickActionIcon, { backgroundColor: '#dcfce7' }]}>
             <Ionicons name="bar-chart-outline" size={28} color="#10b981" />
           </View>
           <Text style={styles.quickActionText}>Reports</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         
         <TouchableOpacity style={styles.quickActionItem} onPress={()=> router.navigate("/student/history")}>
           <View style={[styles.quickActionIcon, { backgroundColor: '#fef3c7' }]}>

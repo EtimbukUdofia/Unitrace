@@ -103,10 +103,10 @@ const TodaysClasses: React.FC<PropType> = ({ styles }) => {
           </View>
           <View style={styles.classStatus}>
             <Text style={[styles.statusText, { color: getStatusColor(session.status) }]}>Ongoing</Text>
-            <TouchableOpacity style={styles.detailsButton} onPress={() => handleViewDetails(session.id)}>
+            {/* <TouchableOpacity style={styles.detailsButton} onPress={() => handleViewDetails(session.id)}>
               <Ionicons name="eye" size={18} color="#3b82f6" />
               <Text style={styles.detailsButtonText}>View Details</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </View>
       ))}

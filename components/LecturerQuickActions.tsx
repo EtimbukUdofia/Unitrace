@@ -14,7 +14,7 @@ const LecturerQuickActions: React.FC<PropType> = ({styles}) => {
       <View style={styles.quickActionsGrid}>
         <TouchableOpacity 
           style={styles.quickActionItem} 
-          onPress={() => router.navigate('/lecturer/generate-qr')}
+          onPress={() => router.navigate('/lecturer/session')}
         >
           <View style={[styles.quickActionIcon, { backgroundColor: '#dbeafe' }]}>
             <Ionicons name="qr-code" size={28} color="#3b82f6" />
@@ -24,7 +24,7 @@ const LecturerQuickActions: React.FC<PropType> = ({styles}) => {
         
         <TouchableOpacity 
           style={styles.quickActionItem}
-          onPress={() => router.navigate('/lecturer/attendance-reports')}
+          onPress={() => router.navigate('/lecturer/report')}
         >
           <View style={[styles.quickActionIcon, { backgroundColor: '#dcfce7' }]}>
             <Ionicons name="analytics" size={28} color="#10b981" />
@@ -32,7 +32,7 @@ const LecturerQuickActions: React.FC<PropType> = ({styles}) => {
           <Text style={styles.quickActionText}>Reports</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity 
+        {/* <TouchableOpacity 
           style={styles.quickActionItem}
           onPress={() => router.navigate('/lecturer/students')}
         >
@@ -40,9 +40,19 @@ const LecturerQuickActions: React.FC<PropType> = ({styles}) => {
             <Ionicons name="people" size={28} color="#f59e0b" />
           </View>
           <Text style={styles.quickActionText}>Students</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         
         <TouchableOpacity 
+          style={styles.quickActionItem}
+          onPress={() => router.navigate('/lecturer/history')}
+        >
+          <View style={[styles.quickActionIcon, { backgroundColor: '#ede9fe' }]}> 
+            <Ionicons name="time-outline" size={28} color="#8b5cf6" />
+          </View>
+          <Text style={styles.quickActionText}>History</Text>
+        </TouchableOpacity>
+        
+        {/* <TouchableOpacity 
           style={styles.quickActionItem}
           onPress={() => router.navigate('/lecturer/schedule')}
         >
@@ -50,7 +60,7 @@ const LecturerQuickActions: React.FC<PropType> = ({styles}) => {
             <Ionicons name="calendar" size={28} color="#8b5cf6" />
           </View>
           <Text style={styles.quickActionText}>Schedule</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </View>
   )

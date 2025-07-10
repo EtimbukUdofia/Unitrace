@@ -38,17 +38,26 @@ export default function TabLayout() {
         )
       }} />
 
-      <Tabs.Screen name="live" options={{
-        title: 'Live',
+      {/* DO NOT add a Tabs.Screen for live-attendance or [sessionId].tsx here. It should only be accessible via navigation, not as a tab. */}
+      
+      <Tabs.Screen name="live-attendance/[sessionId]" options={{
+        title: 'Live Attendance',
         tabBarIcon: ({ color, focused }) => (
-          <Ionicons name={focused ? 'people' : 'people-outline'} color={color} size={24} />
+          <Ionicons name={focused ? 'radio' : 'radio-outline'} color={color} size={24} />
         )
       }} />
-      
+
       <Tabs.Screen name="report" options={{
         title: 'Report',
         tabBarIcon: ({ color, focused }) => (
           <Ionicons name={focused ? 'analytics' : 'analytics-outline'} color={color} size={24} />
+        )
+      }} />
+
+      <Tabs.Screen name="history" options={{
+        title: 'History',
+        tabBarIcon: ({ color, focused }) => (
+          <Ionicons name={focused ? 'time' : 'time-outline'} color={color} size={24} />
         )
       }} />
       

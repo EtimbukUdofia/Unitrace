@@ -31,12 +31,12 @@ export default function TabLayout() {
         )
       }} />
       
-      {/* <Tabs.Screen name="history" options={{
+      <Tabs.Screen name="history" options={{
         title: 'History',
         tabBarIcon: ({ color, focused }) => (
           <Ionicons name={focused ? 'calendar' : 'calendar-outline'} color={color} size={24} />
         )
-      }} /> */}
+      }} />
       
       <Tabs.Screen name="profile" options={{
         title: 'Profile',

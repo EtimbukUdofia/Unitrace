@@ -148,7 +148,11 @@ const LiveAttendancePage = () => {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={{ color: '#6b7280', marginTop: 16, fontSize: 16 }}>Loading...</Text>
+        <Text style={{ color: '#6b7280', marginTop: 16, fontSize: 16, textAlign: 'center' }}>
+          Loading live attendance session...
+          {`\n`}
+          Please wait while we fetch the session details and attendance logs.
+        </Text>
       </View>
     );
   }
