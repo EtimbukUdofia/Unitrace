@@ -42,22 +42,18 @@ const TodaysClasses: React.FC<PropType> = ({ styles }) => {
         setLoading(false);
         return;
       }
-      let completed = 0;
       sessionIds.forEach((id) => {
         const sessionDocRef = doc(db, 'class_sessions', id);
         const unsub = onSnapshot(sessionDocRef, (sessionDocSnap) => {
-          completed++;
           if (sessionDocSnap.exists() && ['active', 'ongoing'].includes(sessionDocSnap.data().status)) {
             sessionMap[id] = { id, ...sessionDocSnap.data() };
           } else {
             // Remove session if ended
             delete sessionMap[id];
           }
-          // Only update state when all listeners have fired at least once
-          if (completed === sessionIds.length) {
-            setOngoingClasses(Object.values(sessionMap));
-            setLoading(false);
-          }
+          // Update state immediately on any session status change
+          setOngoingClasses(Object.values(sessionMap));
+          setLoading(false);
         });
         sessionUnsubs.push(unsub);
       });

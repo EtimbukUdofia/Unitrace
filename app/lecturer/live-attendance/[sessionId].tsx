@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef, useContext } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, Alert, TextInput, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc, updateDoc, collection, onSnapshot, query, where, deleteDoc, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { AuthContext } from '@/context/AuthContext';
 import Button from '@/components/Button';
+import QRCode from 'react-native-qrcode-svg';
 
 const LiveAttendancePage = () => {
   const { sessionId } = useLocalSearchParams();
@@ -19,6 +20,7 @@ const LiveAttendancePage = () => {
   const [addMatric, setAddMatric] = useState('');
   const [addLoading, setAddLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null); // studentId being updated
+  const [showQRModal, setShowQRModal] = useState(false);
   const timerRef = useRef<any>(null);
 
   // Fetch session details and listen to attendance logs
@@ -223,6 +225,12 @@ const LiveAttendancePage = () => {
         </Text>
         <Text style={styles.sessionTimer}>Duration: {Math.floor(timer / 60)}:{('0' + (timer % 60)).slice(-2)}</Text>
       </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', margin: 16 }}>
+        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#3b82f6', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16 }} onPress={() => setShowQRModal(true)}>
+          <Ionicons name="qr-code" size={20} color="#fff" />
+          <Text style={{ color: '#fff', fontWeight: 'bold', marginLeft: 8 }}>Show QR Code</Text>
+        </TouchableOpacity>
+      </View>
       <View style={styles.attendanceFeed}>
         <Text style={styles.feedTitle}>Live Attendance Feed</Text>
         <View style={styles.addStudentRow}>
@@ -288,6 +296,18 @@ const LiveAttendancePage = () => {
           <Text style={styles.endButtonText}>End Session</Text>
         </TouchableOpacity>
       </View>
+      <Modal visible={showQRModal} transparent animationType="fade" onRequestClose={() => setShowQRModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', width: 320, maxWidth: '90%' }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>Session QR Code</Text>
+            <QRCode value={String(sessionId)} size={200} />
+            <Text style={{ marginTop: 16, color: '#374151', textAlign: 'center' }}>Students can scan this QR code to mark their attendance for this session.</Text>
+            <TouchableOpacity style={{ marginTop: 24, backgroundColor: '#3b82f6', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 }} onPress={() => setShowQRModal(false)}>
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
