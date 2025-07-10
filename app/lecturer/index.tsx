@@ -14,8 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { signOut } from '@firebase/auth';
 import { auth } from '@/config/firebase';
-import WeeklyOverview from '@/components/WeeklyOverview';
-import { getClassStatusColor, getClassStatusIcon } from '@/utils/utils';
 import { AuthContext } from '@/context/AuthContext';
 import LecturerQuickActions from '@/components/LecturerQuickActions';
 import LecturerOngoingClass from '@/components/LecturerOngoingClass';
@@ -26,7 +24,7 @@ const LecturerDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  const { user } = useContext(AuthContext);
+  const { user, userData } = useContext(AuthContext);
 
   const router = useRouter();
 
@@ -36,61 +34,6 @@ const LecturerDashboard = () => {
           console.error('Sign out error:', error);
         })
   }
-
-  // Mock lecturer data
-  const [lecturerData] = useState({
-    name: 'Dr. Sarah Johnson',
-    lecturerId: 'LEC001',
-    department: 'Computer Science',
-    title: 'Senior Lecturer',
-    profileImage: null,
-  });
-
-  // Today's classes and stats
-  const [todaysClasses] = useState([
-    {
-      id: 1,
-      subject: 'Data Structures & Algorithms',
-      code: 'CSC301',
-      time: '10:00 AM - 12:00 PM',
-      location: 'Lab 301',
-      studentsEnrolled: 45,
-      studentsPresent: 0,
-      status: 'upcoming', // upcoming, ongoing, completed
-      qrGenerated: false,
-    },
-    {
-      id: 2,
-      subject: 'Database Management Systems',
-      code: 'CSC401',
-      time: '02:00 PM - 04:00 PM',
-      location: 'Room 205',
-      studentsEnrolled: 38,
-      studentsPresent: 32,
-      status: 'completed',
-      qrGenerated: true,
-    },
-    {
-      id: 3,
-      subject: 'Software Engineering',
-      code: 'CSC501',
-      time: '04:30 PM - 06:30 PM',
-      location: 'Room 401',
-      studentsEnrolled: 29,
-      studentsPresent: 0,
-      status: 'upcoming',
-      qrGenerated: false,
-    },
-  ]);
-
-  // Weekly stats
-  const [weeklyStats] = useState({
-    totalClasses: 12,
-    completedClasses: 8,
-    avgAttendance: 82,
-    totalStudents: 112,
-    activeStudents: 98,
-  });
 
   // Recent attendance alerts
   const [attendanceAlerts] = useState([
@@ -137,16 +80,13 @@ const LecturerDashboard = () => {
       day: 'numeric',
     });
   };
-
-  const handleGenerateQR = (classId) => {
-    router.navigate(`/lecturer/generate-qr/${classId}`);
+  // Add a helper function for time-based greeting
+  const getTimeGreeting = () => {
+    const hour = currentDate.getHours();
+    if (hour < 12) return 'Good morning,';
+    if (hour < 18) return 'Good afternoon,';
+    return 'Good evening,';
   };
-
-  const handleViewAttendance = (classId) => {
-    router.navigate(`/lecturer/attendance/${classId}`);
-  };
-
-  // const renderWeeklyOverview = () => (
   //   <View style={styles.overviewCard}>
   //     <Text style={styles.cardTitle}>This Week Overview</Text>
   //     <View style={styles.statsGrid}>
@@ -356,7 +296,7 @@ const LecturerDashboard = () => {
             </TouchableOpacity>
           </View>
           <View style={styles.headerInfo}>
-            <Text style={styles.welcomeText}>Good morning,</Text>
+            <Text style={styles.welcomeText}>{getTimeGreeting()}</Text>
             <Text style={styles.lecturerName}>{user?.displayName}</Text>
           </View>
         </View>
@@ -373,7 +313,7 @@ const LecturerDashboard = () => {
       <View style={styles.dateContainer}>
         <Text style={styles.dateText}>{formatDate(currentDate)}</Text>
         <Text style={styles.lecturerInfo}>
-          {lecturerData.lecturerId} • {lecturerData.title} • {lecturerData.department}
+          {userData?.department}
         </Text>
       </View>
 

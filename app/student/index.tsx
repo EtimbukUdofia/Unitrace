@@ -85,6 +85,14 @@ const StudentDashboard = () => {
     // console.log('Navigate to QR Scanner');
   };
 
+  // Add a helper function for time-based greeting
+  const getTimeGreeting = () => {
+    const hour = currentDate.getHours();
+    if (hour < 12) return 'Good morning,';
+    if (hour < 18) return 'Good afternoon,';
+    return 'Good evening,';
+  };
+
   // const renderAttendanceOverview = () => (
   //   <View style={styles.attendanceCard}>
   //     <View style={styles.cardHeader}>
@@ -252,7 +260,7 @@ const StudentDashboard = () => {
             <Ionicons name="person" size={24} color="#6b7280" />
           </View>
           <View style={styles.headerInfo}>
-            <Text style={styles.welcomeText}>Welcome back,</Text>
+            <Text style={styles.welcomeText}>{getTimeGreeting()}</Text>
             <Text style={styles.studentName}>{user?.displayName}</Text>
           </View>
         </View>
