@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { View, Text, TouchableOpacity, ActivityIndicator, Modal } from 'react-native'
 import React, { useState, useEffect, useContext } from 'react'
 import { getClassStatusColor, getClassStatusIcon } from '@/utils/utils';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { AuthContext } from '@/context/AuthContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import QRCode from 'react-native-qrcode-svg';
 
 type PropType = {
   styles: any
@@ -15,6 +16,7 @@ const LecturerOngoingClass: React.FC<PropType> = ({styles}) => {
   const { user } = useContext(AuthContext);
   const [ongoingClasses, setOngoingClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showQRModal, setShowQRModal] = useState<{ visible: boolean, sessionId: string | null }>({ visible: false, sessionId: null });
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -48,8 +50,8 @@ const LecturerOngoingClass: React.FC<PropType> = ({styles}) => {
         <Text style={styles.classCount}>{ongoingClasses.length} classes</Text>
       </View>
       {ongoingClasses.length === 0 && (
-        <View style={styles.noClassesContainer}>
-          <Ionicons name="calendar-outline" size={40} color="#9ca3af" />
+        <View style={[styles.noClassesContainer, { alignItems: 'center', justifyContent: 'center', flex: 1 }]}> 
+          <Ionicons name="calendar-outline" size={40} color="#9ca3af" style={{ marginBottom: 8 }} />
           <Text style={styles.noClassesText}>No Ongoing Class</Text>
         </View>
       )}
@@ -81,12 +83,7 @@ const LecturerOngoingClass: React.FC<PropType> = ({styles}) => {
               <Text style={styles.classDetailText}>{classItem.location?.name || classItem.location_name || ''}</Text>
             </View>
           </View>
-          <View style={styles.attendanceInfo}>
-            <Text style={styles.attendanceText}>
-              {/* Placeholder: You can fetch studentsEnrolled/studentsPresent if needed */}
-              Ongoing
-            </Text>
-          </View>
+                   {/* </View> */}
           <View style={styles.classActions}>
             <TouchableOpacity 
               style={[styles.actionButton, styles.primaryButton]}
@@ -95,9 +92,31 @@ const LecturerOngoingClass: React.FC<PropType> = ({styles}) => {
               <Ionicons name="radio" size={16} color="#ffffff" />
               <Text style={styles.primaryButtonText}>Live View</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.secondaryButton, { marginLeft: 8 }]}
+              onPress={() => setShowQRModal({ visible: true, sessionId: classItem.id })}
+            >
+              <Ionicons name="qr-code" size={16} color="#3b82f6" />
+              <Text style={[styles.secondaryButtonText, { color: '#3b82f6' }]}>Show QR Code</Text>
+            </TouchableOpacity>
           </View>
         </View>
       ))}
+      {/* QR Code Modal */}
+      {showQRModal.visible && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setShowQRModal({ visible: false, sessionId: null })}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', width: 320, maxWidth: '90%' }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>Session QR Code</Text>
+              <QRCode value={String(showQRModal.sessionId)} size={200} />
+              <Text style={{ marginTop: 16, color: '#374151', textAlign: 'center' }}>Students can scan this QR code to mark their attendance for this session.</Text>
+              <TouchableOpacity style={{ marginTop: 24, backgroundColor: '#3b82f6', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 }} onPress={() => setShowQRModal({ visible: false, sessionId: null })}>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   )
 }
