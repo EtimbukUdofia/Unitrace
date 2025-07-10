@@ -314,6 +314,16 @@ const QRScannerScreen = () => {
       if (!classSessionData || !classSessionData.location) {
         throw new Error('Class session or location not found.');
       }
+      // Prevent scan if session has not started
+      if (!classSessionData.start_time || !['active', 'ongoing'].includes(classSessionData.status)) {
+        setLoading(false);
+        Alert.alert(
+          'Class Not Started',
+          'You cannot mark attendance because this class session has not been started by the lecturer yet.',
+          [{ text: 'OK', onPress: resetScanner }]
+        );
+        return;
+      }
       console.log("passed");
 
       // Check for existing attendance log for this user and session
@@ -395,6 +405,7 @@ const QRScannerScreen = () => {
         ...classSessionData,
         id: classSessionDocSnap.id, // Add the session document ID
         attendanceLogDocId: attendanceLogRef.id, // Store the log ID
+        start_time: classSessionData.start_time || Timestamp.now(), // Ensure start_time is set
       };
       setCurrentLectureData(updatedLectureData);
 
