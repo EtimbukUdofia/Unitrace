@@ -302,10 +302,9 @@ const LecturerDashboard = () => {
         </View>
         <TouchableOpacity 
           style={styles.notificationButton}
-          onPress={() => router.navigate('/lecturer/notifications')}
+          onPress={handleSignOut}
         >
-          <Ionicons name="notifications-outline" size={24} color="#1f2937" />
-          {attendanceAlerts.length > 0 && <View style={styles.notificationBadge} />}
+          <Ionicons name="log-out-outline" size={24} color="#1f2937" />
         </TouchableOpacity>
       </View>
 
@@ -384,7 +383,8 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   notificationButton: {
-    position: 'relative',
+    position: 'absolute',
+    right: 10,
     padding: 8,
   },
   notificationBadge: {

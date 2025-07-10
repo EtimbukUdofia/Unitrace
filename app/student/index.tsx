@@ -266,11 +266,10 @@ const StudentDashboard = () => {
         </View>
         <TouchableOpacity style={styles.notificationButton} onPress={handleSignOut}>
           <Ionicons name="log-out-outline" size={24} color="#1f2937" />
-          <View style={styles.notificationBadge} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/student/history')} style={styles.historyButton}>
+        {/* <TouchableOpacity onPress={() => router.push('/student/history')} style={styles.historyButton}>
           <Ionicons name="analytics" size={22} color="#3b82f6" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       {/* Date */}
@@ -288,7 +287,7 @@ const StudentDashboard = () => {
       >
         {/* Attendance Overview */}
         {/* {renderAttendanceOverview()} */}
-        <AttendanceOverview styles={ styles } attendanceStats={attendanceStats} />
+        {/* <AttendanceOverview styles={ styles } attendanceStats={attendanceStats} /> */}
 
         {/* Quick Actions */}
         {/* {renderQuickActions()} */}
