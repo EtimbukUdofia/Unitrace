@@ -25,6 +25,8 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Button from '@/components/Button';
+import * as XLSX from 'xlsx';
+import { Picker } from '@react-native-picker/picker';
 
 const { width } = Dimensions.get('window');
 
@@ -52,6 +54,8 @@ const LecturerReports = () => {
   const [modalStudentStats, setModalStudentStats] = useState<any[]>([]);
   const [modalDate, setModalDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  // Add state for department filter
+  const [departmentFilter, setDepartmentFilter] = useState('');
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -233,7 +237,7 @@ Generated on: ${new Date().toLocaleDateString()}
         <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
         <ScrollView contentContainerStyle={{ padding: 20 }}>
           <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1f2937', marginBottom: 16 }}>Attendance Report</Text>
-          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 24, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
+          {/* <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 24, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 }}>
             <Text style={{ fontSize: 16, color: '#6b7280', marginBottom: 8 }}>Summary</Text>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
               <Text style={{ fontWeight: 'bold', color: '#1f2937' }}>Total Sessions</Text>
@@ -247,7 +251,7 @@ Generated on: ${new Date().toLocaleDateString()}
               <Text style={{ fontWeight: 'bold', color: '#1f2937' }}>Total Unique Students</Text>
               <Text style={{ color: '#10b981' }}>{summary.totalStudents}</Text>
             </View>
-          </View>
+          </View> */}
           <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937', marginBottom: 12 }}>Per Course</Text>
           {filteredCourseStats.map((course, idx) => (
             <TouchableOpacity key={course.classCode} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 1 }} onPress={() => openCourseModal(course)}>
@@ -256,10 +260,10 @@ Generated on: ${new Date().toLocaleDateString()}
                 <Text style={{ color: '#6b7280' }}>Sessions Held</Text>
                 <Text style={{ color: '#1f2937' }}>{course.sessionCount}</Text>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+              {/* <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                 <Text style={{ color: '#6b7280' }}>Average Attendance</Text>
                 <Text style={{ color: getAttendanceColor(course.avgAttendance) }}>{course.avgAttendance}%</Text>
-              </View>
+              </View> */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ color: '#6b7280' }}>Unique Students</Text>
                 <Text style={{ color: '#10b981' }}>{course.uniqueStudents}</Text>
@@ -318,6 +322,7 @@ Generated on: ${new Date().toLocaleDateString()}
         matricNo: log.matricNo || '',
         name: log.studentName || '',
         time: log.timestamp ? (log.timestamp.seconds ? new Date(log.timestamp.seconds * 1000) : new Date(log.timestamp)) : null,
+        department: log.department || '',
       }));
       setModalStudentStats(statsArr);
       setModalLoading(false);
@@ -338,16 +343,36 @@ Generated on: ${new Date().toLocaleDateString()}
     }
   };
 
-  // Download CSV for modal data
-  const handleDownloadCSV = async () => {
+  const handleDownloadExcel = async () => {
     if (!modalStudentStats.length) return;
-    const header = 'S/N,Matric No,Name,Time\n';
-    const rows = modalStudentStats.map((s, i) => `${i + 1},${s.matricNo},${s.name},${s.time ? (typeof s.time === 'string' ? s.time : s.time.toLocaleString()) : ''}`).join('\n');
-    const csv = header + rows;
-    const fileUri = FileSystem.cacheDirectory + `attendance_${modalCourse.classCode}_${modalDate ? modalDate.toISOString().slice(0,10) : 'all'}.csv`;
-    await FileSystem.writeAsStringAsync(fileUri, csv, { encoding: FileSystem.EncodingType.UTF8 });
-    await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export Attendance CSV' });
+    // Prepare worksheet data
+    const wsData = [
+      ['S/N', 'Matric No', 'Name', 'Time'],
+      ...modalStudentStats.map((s, i) => [
+        i + 1,
+        s.matricNo,
+        s.name,
+        s.time ? (typeof s.time === 'string' ? s.time : s.time.toLocaleString()) : ''
+      ])
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
+    // Write workbook to base64
+    const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+    // Save to file
+    const fileUri = FileSystem.cacheDirectory + `attendance_${modalCourse.classCode}_${modalDate ? modalDate.toISOString().slice(0,10) : 'all'}.xlsx`;
+    await FileSystem.writeAsStringAsync(fileUri, wbout, { encoding: FileSystem.EncodingType.Base64 });
+    await Sharing.shareAsync(fileUri, { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', dialogTitle: 'Export Attendance Excel' });
   };
+
+  // Compute departmentOptions from modalStudentStats before rendering the modal
+  const departmentOptions = Array.from(new Set((modalStudentStats || []).map(s => s.department).filter(Boolean)));
+
+  // Filter stats based on department filter
+  const filteredStats = modalStudentStats.filter(student =>
+    departmentFilter === '' || student.department === departmentFilter
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -405,7 +430,7 @@ Generated on: ${new Date().toLocaleDateString()}
               <Ionicons name="close" size={28} color="#1f2937" />
             </TouchableOpacity>
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1f2937' }}>{modalCourse?.subject} ({modalCourse?.classCode})</Text>
-            <TouchableOpacity onPress={handleDownloadCSV} disabled={modalLoading || !modalStudentStats.length || !modalDate}>
+            <TouchableOpacity onPress={handleDownloadExcel} disabled={modalLoading || !modalStudentStats.length || !modalDate}>
               <Ionicons name="download" size={24} color={modalLoading || !modalStudentStats.length || !modalDate ? '#d1d5db' : '#3b82f6'} />
             </TouchableOpacity>
           </View>
@@ -435,8 +460,8 @@ Generated on: ${new Date().toLocaleDateString()}
           {/* Download CSV button */}
           <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
             <Button
-              title="Download CSV"
-              onPress={handleDownloadCSV}
+              title="Download Excel"
+              onPress={handleDownloadExcel}
               disabled={modalLoading || !modalStudentStats.length || !modalDate}
               type="primary"
               style={{ marginTop: 8, marginBottom: 8 }}
@@ -458,27 +483,45 @@ Generated on: ${new Date().toLocaleDateString()}
               <Text style={{ color: '#6b7280', fontSize: 16 }}>No attendance data for this course on this date.</Text>
             </View>
           ) : (
-            <FlatList
-              data={modalStudentStats}
-              keyExtractor={item => item.matricNo || item.name || Math.random().toString()}
-              contentContainerStyle={{ padding: 16 }}
-              ListHeaderComponent={
-                <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', paddingBottom: 8, marginBottom: 8 }}>
-                  <Text style={{ flex: 1, fontWeight: 'bold', color: '#1f2937' }}>#</Text>
-                  <Text style={{ flex: 2, fontWeight: 'bold', color: '#1f2937' }}>Matric No</Text>
-                  <Text style={{ flex: 3, fontWeight: 'bold', color: '#1f2937' }}>Name</Text>
-                  <Text style={{ flex: 2, fontWeight: 'bold', color: '#1f2937' }}>Time</Text>
-                </View>
-              }
-              renderItem={({ item, index }) => (
-                <View style={{ flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
-                  <Text style={{ flex: 1, color: '#374151' }}>{index + 1}</Text>
-                  <Text style={{ flex: 2, color: '#374151' }}>{item.matricNo}</Text>
-                  <Text style={{ flex: 3, color: '#374151' }}>{item.name}</Text>
-                  <Text style={{ flex: 2, color: '#374151' }}>{item.time ? item.time.toLocaleString() : ''}</Text>
+            <>
+              {/* Add the department filter dropdown above the table in the modal */}
+              {departmentOptions.length > 1 && (
+                <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+                  <Picker
+                    selectedValue={departmentFilter}
+                    onValueChange={setDepartmentFilter}
+                    style={{ backgroundColor: '#fff', borderRadius: 8 }}
+                    enabled={departmentOptions.length > 0}
+                  >
+                    <Picker.Item label={departmentOptions.length > 0 ? 'All Departments' : 'No Departments'} value="" />
+                    {departmentOptions.map(dep => (
+                      <Picker.Item key={dep} label={dep} value={dep} />
+                    ))}
+                  </Picker>
                 </View>
               )}
-            />
+              <FlatList
+                data={filteredStats}
+                keyExtractor={item => item.matricNo || item.name || Math.random().toString()}
+                contentContainerStyle={{ padding: 16 }}
+                ListHeaderComponent={
+                  <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', paddingBottom: 8, marginBottom: 8 }}>
+                    <Text style={{ flex: 1, fontWeight: 'bold', color: '#1f2937' }}>#</Text>
+                    <Text style={{ flex: 2, fontWeight: 'bold', color: '#1f2937' }}>Matric No</Text>
+                    <Text style={{ flex: 3, fontWeight: 'bold', color: '#1f2937' }}>Name</Text>
+                    <Text style={{ flex: 2, fontWeight: 'bold', color: '#1f2937' }}>Date/Time</Text>
+                  </View>
+                }
+                renderItem={({ item, index }) => (
+                  <View style={{ flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
+                    <Text style={{ flex: 1, color: '#374151' }}>{index + 1}</Text>
+                    <Text style={{ flex: 2, color: '#374151' }}>{item.matricNo}</Text>
+                    <Text style={{ flex: 3, color: '#374151' }}>{item.name}</Text>
+                    <Text style={{ flex: 2, color: '#374151' }}>{item.time ? item.time.toLocaleString() : ''}</Text>
+                  </View>
+                )}
+              />
+            </>
           )}
         </SafeAreaView>
       </Modal>
